@@ -43,12 +43,14 @@ MODES = ('test', 'cleanupTest', 'failover', 'reprotect', 'revert')
 
 @contextmanager
 def _open(arguments):
+    """ Open an SrmClient based on the connection information in the arguments """
     args = [arguments['<hostname>'], arguments['<username>'], arguments['<password>']]
     with SrmClient(*args).open() as client:
         yield client
 
 
 def _plan_name_to_moref(client, name):
+    """ Get the moref of a recovery plan by its name """
     plans = client.get_recovery_plans()
     if name not in client.get_recovery_plans():
         raise SrmClientException('Recovery plan called "%s" not found' % name)
@@ -56,6 +58,7 @@ def _plan_name_to_moref(client, name):
 
 
 def _decamelize(s):
+    """ Split camelcase string to words in lowercase """
     return re.sub('(?!^)([A-Z]+)', r' \1', s).lower()
 
 
@@ -86,7 +89,7 @@ def do_show_result(arguments):
         name = arguments['<plan-name>']
         result = client.get_recovery_result(_plan_name_to_moref(client, name))
         table = [(_decamelize(key), value) for key, value in result.iteritems()]
-        print tabulate(table, tablefmt='simple')
+        print tabulate(table, tablefmt='rst')
 
 
 def parse_commandline_arguments(argv):
