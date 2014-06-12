@@ -67,6 +67,15 @@ class SrmClient(object):
     def recovery_cancel(self, moref):
         self._send('Cancel.xml', moref=moref)
 
+    def get_recovery_result(self, moref):
+        data = self._send('GetHistory.xml', moref=moref)
+        history_moref = data['GetHistoryResponse']['returnval']['#text']
+        data = self._send('GetRecoveryResult.xml', moref=history_moref)
+        history = data['GetRecoveryResultResponse']['returnval']
+        history.pop('key')
+        history.pop('plan')
+        return history
+
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO)
