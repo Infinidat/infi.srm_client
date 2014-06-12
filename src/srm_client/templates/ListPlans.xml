@@ -1,0 +1,8 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:srm0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:ListPlans>
+         <urn:_this type="SrmRecovery">SrmRecovery</urn:_this>
+      </urn:ListPlans>
+   </soapenv:Body>
+</soapenv:Envelope>

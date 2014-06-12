@@ -1,0 +1,10 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:srm0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:SrmLoginLocale>
+         <urn:_this type="SrmServiceInstance">SrmServiceInstance</urn:_this>
+         <urn:username>{{ username }}</urn:username>
+         <urn:password>{{ password }}</urn:password>
+      </urn:SrmLoginLocale>
+   </soapenv:Body>
+</soapenv:Envelope>
