@@ -52,7 +52,7 @@ class SrmClient(object):
         containing its moref, state and list of protection group morefs in this plan.
         """
         data = self._send('ListPlans.xml')
-        morefs = _listify(data['ListPlansResponse']['returnval']['#text'])
+        morefs = [r['#text'] for r in _listify(data['ListPlansResponse']['returnval'])]
         ret = {}
         for moref in morefs:
             data = self._send('RecoveryPlanGetInfo.xml', moref=moref)['RecoveryPlanGetInfoResponse']['returnval']
