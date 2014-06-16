@@ -75,10 +75,3 @@ class SrmClient(object):
         history.pop('key')
         history.pop('plan')
         return history
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    with SrmClient('srm-ci02', 'Administrator@vsphere.local', 'Xsignnet1!').open() as client:
-        print client.get_recovery_plans()
-
