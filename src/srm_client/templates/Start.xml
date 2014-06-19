@@ -1,0 +1,9 @@
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:srm0">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <urn:Start>
+         <urn:_this type="SrmRecoveryPlan">{{ moref }}</urn:_this>
+         <urn:mode>{{ mode }}</urn:mode>
+      </urn:Start>
+   </soapenv:Body>
+</soapenv:Envelope>
