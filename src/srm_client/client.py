@@ -149,4 +149,16 @@ class InternalSrmClient(object):
 
     def get_arrays(self):
         with self.property_collector() as key:
-            raise NotImplementedError()
+            self._send('CreateFilter.xml', key=key,
+                       propSet=[dict(type="DrReplicationReplicationManager", value="replicationProvider"),
+                                dict(type="DrReplicationHbrProvider", value="hbrOvfPath"),
+                                dict(type="DrReplicationHbrProvider", value="hmsOvfPath"),
+                                dict(type="DrReplicationHbrProvider", value="hmsServerInfo"),
+                                dict(type="DrReplicationHbrProvider", value="remoteHmsServerInfo")],
+                       objectSet=[dict(obj=dict(type="DrServiceInstance", value="DrServiceInstance"), partialUpdates=False,
+                                       selectSet=[dict(type="DrServiceInstance", path="content.remoteSiteManager", skip=True, selectSet=[]),
+                                                  dict(type="DrServiceInstance", path="content.replicationManager", skip=False, selectSet=[dict(type="DrReplicationReplicationManager",
+                                                                                                                                                path="replicationProvider", skip=False)])])])
+            # secondCollector.CreateFilter(...) # remote-site-manager
+            # secondCollector.CreateFilter(...) # array-stuff
+            print self._send('WaitForUpdatesEx.xml', key=key, version='')
