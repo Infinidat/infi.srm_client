@@ -16,7 +16,6 @@ def _listify(value):
 
 
 class SrmClient(object):
-
     def __init__(self, hostname, username, password):
         self.url = 'https://%s:9007/' % hostname
         self.username = username
@@ -75,3 +74,79 @@ class SrmClient(object):
         history.pop('key')
         history.pop('plan')
         return history
+
+
+class vCenterClient(object):
+    def __init__(self, hostname, username, password):
+        self.url = 'https://%s/sdk' % hostname
+        self.key = None
+        self.username = username
+        self.password = password
+        self.jinja_env = Environment(loader=PackageLoader('srm_client'))
+        self.session = requests.Session() # the session is used to keep vmware's auth cookie
+        self.session.headers.update({
+            'Content-Type': 'text/xml;charset=UTF-8'
+        })
+
+    def _send(self, template, **kwargs):
+        xml = self.jinja_env.get_template(template).render(**kwargs)
+        logger.info('SENDING:\n%s\n', xml)
+        result = self.session.post(self.url, data=xml, verify=False).text
+        logger.info('RESULT:\n%s\n', result)
+        body = xmltodict.parse(result)['soapenv:Envelope']['soapenv:Body']
+        if 'soapenv:Fault' in body:
+            raise SrmClientException(body['soapenv:Fault']['faultstring'])
+        return body
+
+    @contextmanager
+    def open(self):
+        self.key = self._send('Login.xml', username=self.username, password=self.password)['LoginResponse']['returnval']['key']
+        try:
+            yield self
+        finally:
+            self._send('Logout.xml')
+
+
+class InternalSrmClient(object):
+    def __init__(self, hostname, username, password):
+        self.url = 'https://%s:8095/dr' % hostname
+        self.username = username
+        self.password = password
+        self.jinja_env = Environment(loader=PackageLoader('srm_client'))
+        self.session = requests.Session() # the session is used to keep vmware's auth cookie
+        self.session.headers.update({
+            'Content-Type': 'text/xml;charset=UTF-8',
+            'SOAPAction': ''
+        })
+
+    def _send(self, template, **kwargs):
+        xml = self.jinja_env.get_template(template).render(**kwargs)
+        logger.info('SENDING:\n%s\n', xml)
+        result = self.session.post(self.url, data=xml, verify=False).text
+        logger.info('RESULT:\n%s\n', result)
+        body = xmltodict.parse(result)['soapenv:Envelope']['soapenv:Body']
+        if 'soapenv:Fault' in body:
+            raise SrmClientException(body['soapenv:Fault']['faultstring'])
+        return body
+
+    @contextmanager
+    def open(self):
+        vcenter_address = self._send('RetrieveContent.xml')['RetrieveContentResponse']['returnval']['siteName']
+        with vCenterClient(vcenter_address, self.username, self.password).open() as vcenter_client:
+            self._send('DrLogin.xml', username=self.username, key=vcenter_client.key)
+            try:
+                yield self
+            finally:
+                self._send('DrLogout.xml')
+
+    @contextmanager
+    def property_collector(self):
+        key = self._send('CreatePropertyCollector.xml')['CreatePropertyCollectorResponse']['returnval']['#text']
+        try:
+            yield key
+        finally:
+            self._send('DestroyPropertyCollector.xml', key=key)
+
+    def get_arrays(self):
+        with self.property_collector() as key:
+            raise NotImplementedError()

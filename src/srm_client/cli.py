@@ -1,14 +1,15 @@
 """SRM Client v{version}
 
 Usage:
-    srm list-plans    <hostname> <username> <password> [--debug]
-    srm test          <plan-name> <hostname> <username> <password> [--debug]
-    srm cleanupTest   <plan-name> <hostname> <username> <password> [--debug]
-    srm failover      <plan-name> <hostname> <username> <password> [--debug]
-    srm reprotect     <plan-name> <hostname> <username> <password> [--debug]
-    srm revert        <plan-name> <hostname> <username> <password> [--debug]
-    srm cancel        <plan-name> <hostname> <username> <password> [--debug]
-    srm show-result   <plan-name> <hostname> <username> <password> [--debug]
+    srm [options] list-plans    <hostname> <username> <password>
+    srm [options] list-arrays   <hostname> <username> <password>
+    srm [options] test          <plan-name> <hostname> <username> <password>
+    srm [options] cleanupTest   <plan-name> <hostname> <username> <password>
+    srm [options] failover      <plan-name> <hostname> <username> <password>
+    srm [options] reprotect     <plan-name> <hostname> <username> <password>
+    srm [options] revert        <plan-name> <hostname> <username> <password>
+    srm [options] cancel        <plan-name> <hostname> <username> <password>
+    srm [options] show-result   <plan-name> <hostname> <username> <password>
 
 Options:
     -h --help         show this screen.
@@ -17,6 +18,7 @@ Options:
 
 More information:
     srm list-plans    list all recovery plans and their status
+    srm list-arrays   list all storage arrays
     srm test          run a test failover to the peer (recovery) site, without halting the local (protected) site
     srm cleanupTest   after testing a recovery plan, cleans up all effects of the test operation
     srm failover      move to the peer (recovery) site; when all groups are moved the recovery plan is complete
@@ -29,7 +31,7 @@ import colorama
 import sys
 import docopt
 from infi.traceback import pretty_traceback_and_exit_decorator
-from client import SrmClient, SrmClientException
+from client import SrmClient, InternalSrmClient, SrmClientException
 from infi.pyutils.contexts import contextmanager
 from tabulate import tabulate
 import re
@@ -46,6 +48,14 @@ def _open(arguments):
     """ Open an SrmClient based on the connection information in the arguments """
     args = [arguments['<hostname>'], arguments['<username>'], arguments['<password>']]
     with SrmClient(*args).open() as client:
+        yield client
+
+
+@contextmanager
+def _internal_open(arguments):
+    """ Open an SrmClient based on the connection information in the arguments """
+    args = [arguments['<hostname>'], arguments['<username>'], arguments['<password>']]
+    with InternalSrmClient(*args).open() as client:
         yield client
 
 
@@ -67,6 +77,11 @@ def do_list_plans(arguments):
         plans = client.get_recovery_plans()
         table = [[key, plan['state'], len(plan['groups'])] for key, plan in plans.iteritems()]
         print tabulate(table, ['NAME', 'STATE', 'PROTECTION GROUPS'], tablefmt='rst')
+
+
+def do_list_arrays(arguments):
+    with _internal_open(arguments) as client:
+        client.get_arrays()
 
 
 def do_start(arguments):
@@ -105,6 +120,8 @@ def srm(argv=sys.argv[1:]):
                 logging.basicConfig(level=logging.DEBUG)
             if arguments['list-plans']:
                 do_list_plans(arguments)
+            elif arguments['list-arrays']:
+                do_list_arrays(arguments)
             elif any([arguments[mode] for mode in MODES]):
                 do_start(arguments)
             elif arguments['cancel']:
