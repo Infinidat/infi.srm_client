@@ -319,3 +319,10 @@ class InternalSrmClient(BaseClient):
                                 datastore['name'] = device['name']
                                 datastore['pair'] = pool['key']
         return datastores
+
+    def delete_recovery_plan(self, plan):
+        # we fetch the recovery plan ref from the public api
+        self.wait_for_task(self._send('DestroyRecoveryPlan_Task.xml', key=plan['moref'].replace('srm-recovery-plan', 'srm-recovery-plan')))
+
+    def create_recovery_plan(self, plan, protection_groups):
+        self.wait_for_task(self._send('CreateRecoveryPlan_Task.xml', name=plan, protection_groups=protection_groups))

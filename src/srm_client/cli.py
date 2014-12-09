@@ -7,6 +7,8 @@ Usage:
     srm [options] list-protection-groups              <hostname> <username> <password>
     srm [options] delete-protection-group             <hostname> <username> <password> <group>
     srm [options] create-protection-group             <hostname> <username> <password> <group> [<datastore>...]
+    srm [options] create-plan                         <hostname> <username> <password> <plan>  [<group>...]
+    srm [options] delete-plan                         <hostname> <username> <password> <plan>
     srm [options] enable-pair                         <hostname> <username> <password> <local-array>
     srm [options] disable-pair                        <hostname> <username> <password> <local-array>
     srm [options] test                    <plan-name> <hostname> <username> <password>
@@ -172,6 +174,18 @@ def do_create_protection_group(arguments):
         client.create_protection_group(arguments['<group>'], datastores)
 
 
+def do_delete_recovery_plan(arguments):
+    with _internal_open(arguments) as internal_client, _open(arguments) as client:
+        internal_client.delete_recovery_plan(client.get_recovery_plans()[arguments['<plan>']])
+
+
+def do_create_recovery_plan(arguments):
+    with _internal_open(arguments) as client:
+        protection_groups = [item for item in client.get_protection_groups() if
+                             item['name'] in arguments['<group>']]
+        client.create_recovery_plan(arguments['<plan>'], protection_groups)
+
+
 def do_start(arguments):
     with _open(arguments) as client:
         for mode in MODES:
@@ -218,6 +232,10 @@ def srm(argv=sys.argv[1:]):
                 do_delete_protection_group(arguments)
             elif arguments['create-protection-group']:
                 do_create_protection_group(arguments)
+            elif arguments['delete-plan']:
+                do_delete_recovery_plan(arguments)
+            elif arguments['create-plan']:
+                do_create_recovery_plan(arguments)
             elif arguments['enable-pair']:
                 do_enable_pair(arguments)
             elif arguments['disable-pair']:

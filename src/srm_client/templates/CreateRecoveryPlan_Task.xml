@@ -1,0 +1,17 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <CreateRecoveryPlan_Task xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrRecoveryRecoveryManager" xmlns:p7="urn:internalvim25">DrRecoveryManager2</_this>
+      <location type="DrFolder">DrRecoveryRootFolder</location>
+      <spec>
+        <name>{{ name }}</name>
+        <description></description>
+        {%- for group in protection_groups %}
+        <groupsToAdd type="DrReplicationProtectionGroup">{{ group.key }}</groupsToAdd>
+        {%- endfor %}
+        <remoteSettings />
+      </spec>
+      <site type="DrRemoteSite">site-1041</site>
+    </CreateRecoveryPlan_Task>
+  </soap:Body>
+</soap:Envelope>
