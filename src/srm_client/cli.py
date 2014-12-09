@@ -3,6 +3,8 @@
 Usage:
     srm [options] list-plans    <hostname> <username> <password>
     srm [options] list-arrays   <hostname> <username> <password>
+    srm [options] enable-pair   <hostname> <username> <password> <local-array>
+    srm [options] disable-pair  <hostname> <username> <password> <local-array>
     srm [options] test          <plan-name> <hostname> <username> <password>
     srm [options] cleanupTest   <plan-name> <hostname> <username> <password>
     srm [options] failover      <plan-name> <hostname> <username> <password>
@@ -19,6 +21,8 @@ Options:
 More information:
     srm list-plans    list all recovery plans and their status
     srm list-arrays   list all storage arrays
+    srm enalbe-pair   enable array pair
+    srm disable-pair  disable array pair
     srm test          run a test failover to the peer (recovery) site, without halting the local (protected) site
     srm cleanupTest   after testing a recovery plan, cleans up all effects of the test operation
     srm failover      move to the peer (recovery) site; when all groups are moved the recovery plan is complete
@@ -93,6 +97,28 @@ def do_list_arrays(arguments):
         print tabulate(table, ['NAME', 'ID', 'PEER ID', 'ENABLED'], tablefmt='rst')
 
 
+def do_enable_pair(arguments):
+    with _internal_open(arguments) as client:
+        _tuple = None
+        for array in client.get_arrays():
+            for pool in array['pools']:
+                if pool['name'] == arguments['<local-array>']:
+                    _tuple = array, pool
+        assert _tuple is not None
+        client.enable_array_pair(*_tuple)
+
+
+def do_disable_pair(arguments):
+    with _internal_open(arguments) as client:
+        _tuple = None
+        for array in client.get_arrays():
+            for pool in array['pools']:
+                if pool['name'] == arguments['<local-array>']:
+                    _tuple = array, pool
+        assert _tuple is not None
+        client.disable_array_pair(*_tuple)
+
+
 def do_start(arguments):
     with _open(arguments) as client:
         for mode in MODES:
@@ -131,6 +157,10 @@ def srm(argv=sys.argv[1:]):
                 do_list_plans(arguments)
             elif arguments['list-arrays']:
                 do_list_arrays(arguments)
+            elif arguments['enable-pair']:
+                do_enable_pair(arguments)
+            elif arguments['disable-pair']:
+                do_disable_pair(arguments)
             elif any([arguments[mode] for mode in MODES]):
                 do_start(arguments)
             elif arguments['cancel']:

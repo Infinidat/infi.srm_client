@@ -109,7 +109,7 @@ class vCenterClient(object):
 
 class InternalSrmClient(object):
     def __init__(self, hostname, username, password):
-        self.url = 'https://%s:8095/dr' % hostname
+        self.url = 'https://%s:%s/dr' % (hostname.split(':')[0], '8095' if ':' not in hostname else hostname.split(':')[1])
         self.username = username
         self.password = password
         self.jinja_env = Environment(loader=PackageLoader('srm_client'))
@@ -146,6 +146,18 @@ class InternalSrmClient(object):
             yield key
         finally:
             self._send('DestroyPropertyCollector.xml', key=key)
+
+    def get_remote_site(self):
+        from munch import munchify
+        with self.property_collector() as key:
+            response = self._send('RetrievePropertiesEx.xml', key=key,
+                                  specSet=[dict(propSet=[dict(type="DrRemoteSite", all=True)],
+                                                objectSet=[dict(obj=dict(type="DrServiceInstance", value="DrServiceInstance"), partialUpdates=False,
+                                                                selectSet=[dict(type="DrServiceInstance", path="content.remoteSiteManager",
+                                                                                selectSet=[dict(type="DrRemoteSiteManager", path="remoteSiteList", selectSet=[])])])])])
+
+        item = munchify(response).RetrievePropertiesExResponse.returnval.objects
+        return dict(key=item.obj['#text'])
 
     def get_arrays(self):
         from munch import munchify
@@ -191,8 +203,17 @@ class InternalSrmClient(object):
                     [active_pair] = [pair for pair in pairs if pair['id'] == pool['id']]
                 except ValueError:
                     pool.update(enabled=False)
-                pool.update(enabled=True, **active_pair)
+                else:
+                    pool.update(enabled=True, **active_pair)
         return arrays
 
     def refresh_array(self, array):
         self._send("DiscoverArrays_Task.xml", key=array['key'])
+
+    def enable_array_pair(self, array, pool):
+        remote_site = self.get_remote_site()
+        self._send("AddArrayPair_Task.xml", key=array['key'], array_id=pool['id'], peer_array_id=pool['peer_id'], site_id=remote_site['key'])
+
+    def disable_array_pair(self, array, pool):
+        self._send("RemoveArrayPair_Task.xml", key=array['key'], pair_key=pool['key'])
+
