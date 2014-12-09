@@ -257,19 +257,27 @@ class InternalSrmClient(BaseClient):
 
         objects = _listify(munchify(response).RetrievePropertiesExResponse.returnval.objects)
         protection_groups = []
-        protected_vms = []
+        protected_vms = {}
 
         def _extract_protection_group(item):
-            pass
+            protection_groups.append(dict(key=item.obj['#text'], name=_get_proprety(item, 'settings').val.name,
+                                          state=_get_proprety(item, 'state').val['#text'],
+                                          protected_datastores=[dict(key=value.protectedDatastore['#text'], name=value.protectedName) for
+                                                                     value in _listify(_get_proprety(item, 'peer').val.providerDetails.datastore)],
+                                          protected_vms=[dict(key=vm['#text'], name=protected_vms[vm['#text']]['name']) for
+                                                         vm in _listify(_get_proprety(item, 'protectedVm').val.get('ManagedObjectReference', []))]))
 
         def _extract_protected_vm(item):
-            pass
+            protected_vms[item.obj['#text']] = dict(key=item.obj['#text'],
+                                                    state=_get_proprety(item, 'state').val['#text'],
+                                                    name=_get_proprety(item, 'productionVmInfo').val.name,
+                                                    protection_group=_get_proprety(item, 'parent').val['#text'])
 
+        for item in objects:
+            if item.obj['#text'].startswith('protected-vm'):
+                _extract_protected_vm(item)
         for item in objects:
             if item.obj['#text'].startswith('protection-group'):
                 _extract_protection_group(item)
-            elif item.obj['#text'].startswith('protected-vm'):
-                _extract_protected_vm(item)
 
-        # TODO merge the objects
         return protection_groups

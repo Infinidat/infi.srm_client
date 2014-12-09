@@ -124,8 +124,14 @@ def do_list_devices(arguments):
 
 
 def do_list_protection_groups(arguments):
+    from pprint import pprint
     with _internal_open(arguments) as client:
-        arrays = client.get_protection_groups()
+        table = []
+        for group in client.get_protection_groups():
+            table.append([group['name'], group['state'],
+                          [item['name'] for item in group['protected_datastores']],
+                          [item['name'] for item in group['protected_vms']]])
+        print tabulate(table, ['NAME', 'STATE', 'DATASTORES', 'VIRTUAL MACHINES'], tablefmt='rst')
 
 
 def do_enable_pair(arguments):
