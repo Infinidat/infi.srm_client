@@ -189,8 +189,12 @@ class InternalSrmClient(BaseClient):
             info = _get_proprety(item, 'info').val
             peer = _get_proprety(item, 'peer').val
             device = _get_proprety(item, 'device').val.get('DrStorageStorageDevice', [])
-
-            devices = [dict(name=device.name, role=device.role) for device in _listify(device)]
+            replicated_datastore = _get_proprety(item, 'replicatedDatastore').val.get('DrStorageReplicatedDatastore', [])
+            devices = [dict(name=device.name, role=device.role, id=device.id) for device in _listify(device)]
+            for datastore in replicated_datastore:
+                for device in devices:
+                    if datastore.extent.device == device['id']:
+                        device['key'] = datastore.key['#text']
             pairs.append(dict(key=item.obj['#text'], id=info.key, name=info.name, peer_id=peer.arrayId, devices=devices))
 
         objects = _listify(munchify(response).RetrievePropertiesExResponse.returnval.objects)
@@ -231,7 +235,12 @@ class InternalSrmClient(BaseClient):
         for key, value in response.items():
             if not key.endswith('Response'):
                 continue
-            task_key = value['returnval']['#text']
+            if '#text' in value['returnval']:
+                task_key = value['returnval']['#text']
+            else:
+                for key, obj in value['returnval'].items():
+                    if key.endswith('Task'):
+                        task_key = obj['task']['#text']
 
         specSet = [dict(propSet=[dict(type="Task", all=True)],
                         objectSet=[dict(obj=dict(type="Task", value=task_key), partialUpdates=False, selectSet=[])])]
@@ -281,3 +290,32 @@ class InternalSrmClient(BaseClient):
                 _extract_protection_group(item)
 
         return protection_groups
+
+    def delete_protection_group(self, group):
+        self.wait_for_task(self._send('UnprotectAndRemoveProtectionGroup.xml', key=group['key']))
+
+    def create_protection_group(self, group, datastores):
+        self.wait_for_task(self._send('CreateProtectionGroup_Task.xml', name=group,
+                                      datastores=datastores, site_id=self.get_remote_site()['key']))
+        [protection_group] = [item for item in self.get_protection_groups() if item['name'] == group]
+        vms = []
+        for datastores in datastores:
+            vms.extend(datastores['vms'])
+        self._send('ProtectVms.xml', key=protection_group['key'], vms=vms)
+
+    def get_unprotected_datastores(self):
+        datastores = []
+        unassigned_groups = munchify(self._send('QueryUnassignedDatastoreGroupArrays.xml'))
+        for array in _listify(unassigned_groups.QueryUnassignedDatastoreGroupArraysResponse.returnval):
+            unassigned_datastores = munchify(self._send('QueryUnassignedDatastoreGroups.xml', key=array['#text']))
+            for datastore_group in _listify(unassigned_datastores.QueryUnassignedDatastoreGroupsResponse.returnval):
+                datastores.append(dict(key=datastore_group.key, vms=[vm.key['#text'] for vm in  _listify(datastore_group.vm)]))
+        for array in self.get_arrays():
+            for pool in array['pools']:
+                if pool['enabled']:
+                    for device in pool['devices']:
+                        for datastore in datastores:
+                            if 'key' in device and device['key'] == datastore['key']:
+                                datastore['name'] = device['name']
+                                datastore['pair'] = pool['key']
+        return datastores

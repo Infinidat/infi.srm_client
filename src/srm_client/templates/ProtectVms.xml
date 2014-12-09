@@ -1,0 +1,26 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <operationID>CE06D2C8-0000002D</operationID>
+  </soap:Header>
+  <soap:Body>
+    <ProtectVms xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrReplicationProtectionGroup" xmlns:p7="urn:internalvim25">{{ key }}</_this>
+      <specs>
+        {%- for vm in vms %}
+        <vm xmlns:internalvim25="urn:internalvim25" type="VirtualMachine">{{ vm }}</vm>
+        {%- endfor %}
+        <protectionSettings>
+          <logsMirrored>false</logsMirrored>
+          <ftMirrored>false</ftMirrored>
+          <changeVersion></changeVersion>
+        </protectionSettings>
+        <recoverySpec>
+          <placeholderVmLocation />
+          <recoveryLocationSettings>
+            <changeVersion></changeVersion>
+          </recoveryLocationSettings>
+        </recoverySpec>
+      </specs>
+    </ProtectVms>
+  </soap:Body>
+</soap:Envelope>

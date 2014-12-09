@@ -5,6 +5,8 @@ Usage:
     srm [options] list-arrays                         <hostname> <username> <password> [--refresh]
     srm [options] list-devices                        <hostname> <username> <password> [--refresh]
     srm [options] list-protection-groups              <hostname> <username> <password>
+    srm [options] delete-protection-group             <hostname> <username> <password> <group>
+    srm [options] create-protection-group             <hostname> <username> <password> <group> [<datastore>...]
     srm [options] enable-pair                         <hostname> <username> <password> <local-array>
     srm [options] disable-pair                        <hostname> <username> <password> <local-array>
     srm [options] test                    <plan-name> <hostname> <username> <password>
@@ -118,13 +120,12 @@ def do_list_devices(arguments):
                 print 'no arrays detected for %s' % array['name']
             for pool in array['pools']:
                 for device in pool['devices']:
-                    table.append([device['name'], device['role']])
+                    table.append([device['name'], device['role'], 'YES' if 'key' in device else 'NO'])
         print ''
-        print tabulate(table, ['NAME', 'ROLE'], tablefmt='rst')
+        print tabulate(table, ['NAME', 'ROLE', 'HAS LOCAL DATASTORE'], tablefmt='rst')
 
 
 def do_list_protection_groups(arguments):
-    from pprint import pprint
     with _internal_open(arguments) as client:
         table = []
         for group in client.get_protection_groups():
@@ -154,6 +155,21 @@ def do_disable_pair(arguments):
                     _tuple = array, pool
         assert _tuple is not None
         client.disable_array_pair(*_tuple)
+
+
+def do_delete_protection_group(arguments):
+    with _internal_open(arguments) as client:
+        [group] = [item for item in client.get_protection_groups() if item['name'] == arguments['<group>']]
+        client.delete_protection_group(group)
+
+
+def do_create_protection_group(arguments):
+    with _internal_open(arguments) as client:
+        datastore_names = arguments['<datastore>']
+        datastores = [item for item in client.get_unprotected_datastores() if item['name'] in datastore_names]
+        assert len(datastore_names) == len(datastores)
+        assert len({item['pair'] for item in datastores}) == 1
+        client.create_protection_group(arguments['<group>'], datastores)
 
 
 def do_start(arguments):
@@ -198,6 +214,10 @@ def srm(argv=sys.argv[1:]):
                 do_list_devices(arguments)
             elif arguments['list-protection-groups']:
                 do_list_protection_groups(arguments)
+            elif arguments['delete-protection-group']:
+                do_delete_protection_group(arguments)
+            elif arguments['create-protection-group']:
+                do_create_protection_group(arguments)
             elif arguments['enable-pair']:
                 do_enable_pair(arguments)
             elif arguments['disable-pair']:

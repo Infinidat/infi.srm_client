@@ -1,0 +1,23 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <CreateProtectionGroup_Task xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrReplicationReplicationManager" xmlns:p7="urn:internalvim25">DrReplicationManager</_this>
+      <location type="DrFolder">DrReplicationRootFolder</location>
+      <settings>
+        <name>{{ name }}</name>
+        <description></description>
+        <providerSettings xsi:type="DrStorageProviderGroupSettings">
+          {%- if datastores %}
+          <array type="DrStorageReplicatedArrayPair">{{ datastores[0].pair }}</array>
+          {%- for datastore in datastores %}
+            <datastore xmlns:internalvim25="urn:internalvim25" type="Datastore">{{ datastore.key }}</datastore>
+          {%- endfor %}
+          {%- endif %}
+        </providerSettings>
+        <changeVersion></changeVersion>
+      </settings>
+      <provider xsi:type="p7:ManagedObjectReference" type="DrReplicationStorageProvider" xmlns:p7="urn:internalvim25">StorageReplicationProvider</provider>
+      <site type="DrRemoteSite">{{ site_id }}</site>
+    </CreateProtectionGroup_Task>
+  </soap:Body>
+</soap:Envelope>
