@@ -148,34 +148,18 @@ class InternalSrmClient(object):
             self._send('DestroyPropertyCollector.xml', key=key)
 
     def get_arrays(self):
+        from munch import munchify
         with self.property_collector() as key:
-            self._send('CreateFilter.xml', key=key,
-                       propSet=[dict(type="DrReplicationReplicationManager", value="replicationProvider"),
-                                dict(type="DrReplicationHbrProvider", value="hbrOvfPath"),
-                                dict(type="DrReplicationHbrProvider", value="hmsOvfPath"),
-                                dict(type="DrReplicationHbrProvider", value="hmsServerInfo"),
-                                dict(type="DrReplicationHbrProvider", value="remoteHmsServerInfo")],
-                       objectSet=[dict(obj=dict(type="DrServiceInstance", value="DrServiceInstance"), partialUpdates=False,
-                                       selectSet=[dict(type="DrServiceInstance", path="content.remoteSiteManager", skip=True, selectSet=[]),
-                                                  dict(type="DrServiceInstance", path="content.replicationManager", skip=False, selectSet=[dict(type="DrReplicationReplicationManager",
-                                                                                                                                                path="replicationProvider", skip=False)])])])
-            self._send('CreateFilter.xml', key=key,
-                       propSet=[dict(type="DrRemoteSite", value="connected"),
-                                dict(type="DrRemoteSite", value="name"),
-                                dict(type="DrServiceInstance", value="content.siteName")],
-                       objectSet=[dict(obj=dict(type="DrServiceInstance", value="DrServiceInstance"), partialUpdates=False,
-                                       selectSet=[dict(type="DrServiceInstance", path="content.remoteSiteManager", skip=True, selectSet=[]),
-                                                  dict(type="DrRemoteSiteManager", path="remoteSiteList", skip=False, selectSet=[])])])
-            self._send('CreateFilter.xml', key=key,
-                       propSet=[dict(type="DrStorageStorageManager", value="arrayManager.length"),
-                                dict(type="DrStorageArrayManager", value="name"),
-                                dict(type="DrStorageArrayManager", value="arrayPair"),
-                                dict(type="DrStorageArrayManager", value="arrayInfo"),
-                                dict(type="DrStorageArrayManager", value="arrayDiscoveryStatus.fault"),
-                                dict(type="DrStorageReplicatedArrayPair", value="owner"),
-                                dict(type="DrStorageReplicatedArrayPair", value="deviceDiscoveryStatus.fault"),
-                                dict(type="DrStorageReplicatedArrayPair", value="deviceDiscoveryStatus.peerMatchingFault"),
-                                dict(type="DrStorageReplicatedArrayPair", value="deviceMatchingFault")],
-                       objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
-                                       selectSet=[dict(type="DrReplicationReplicationManager", path="replicationProvider", skip=True, selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True, selectSet=[dict(type="DrStorageStorageManager", path="arrayManager", selectSet=[dict(type="DrStorageArrayManager", path="arrayPair", selectSet=[])])])])])])
-            print self._send('WaitForUpdatesEx.xml', key=key, version='')
+            response = self._send('RetrievePropertiesEx.xml', key=key,
+                                  specSet=[dict(propSet=[dict(type="DrStorageStorageManager", value="arrayManager.length"),
+                                                         dict(type="DrStorageArrayManager", value="name"),
+                                                         dict(type="DrStorageArrayManager", value="arrayPair"),
+                                                         dict(type="DrStorageArrayManager", value="arrayInfo"),
+                                                         dict(type="DrStorageArrayManager", value="arrayDiscoveryStatus.fault")],
+                                                objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
+                                                                selectSet=[dict(type="DrReplicationReplicationManager", path="replicationProvider", skip=True,
+                                                                                selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True,
+                                                                                                selectSet=[dict(type="DrStorageStorageManager", path="arrayManager",
+                                                                                                                selectSet=[dict(type="DrStorageArrayManager", path="arrayPair",
+                                                                                                                                selectSet=[])])])])])])])
+        print munchify(response).RetrievePropertiesExResponse.returnval.objects
