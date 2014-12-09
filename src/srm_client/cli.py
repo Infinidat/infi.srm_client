@@ -84,6 +84,7 @@ def do_list_arrays(arguments):
         arrays = client.get_arrays()
         table = []
         for array in arrays:
+            client.refresh_array(array)
             if not array['pools']:
                 print 'no arrays detected for %s' % array['name']
             for pool in array['pools']:

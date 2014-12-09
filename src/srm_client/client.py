@@ -193,3 +193,6 @@ class InternalSrmClient(object):
                     pool.update(enabled=False)
                 pool.update(enabled=True, **active_pair)
         return arrays
+
+    def refresh_array(self, array):
+        self._send("DiscoverArrays_Task.xml", key=array['key'])
