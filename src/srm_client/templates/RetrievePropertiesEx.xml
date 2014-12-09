@@ -7,7 +7,11 @@
       {%- for item in spec.propSet %}
         <internalvim25:propSet>
           <internalvim25:type>{{ item.type }}</internalvim25:type>
+          {%- if item.all %}
+          <internalvim25:all>true</internalvim25:all>
+          {% else %}
           <internalvim25:pathSet>{{ item.value }}</internalvim25:pathSet>
+          {% endif %}
         </internalvim25:propSet>
       {%- endfor %}
       {%- for item in spec.objectSet %}

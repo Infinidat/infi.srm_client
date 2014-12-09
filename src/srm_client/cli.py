@@ -81,7 +81,15 @@ def do_list_plans(arguments):
 
 def do_list_arrays(arguments):
     with _internal_open(arguments) as client:
-        client.get_arrays()
+        arrays = client.get_arrays()
+        table = []
+        for array in arrays:
+            if not array['pools']:
+                print 'no arrays detected for %s' % array['name']
+            for pool in array['pools']:
+                table.append([pool['name'], pool['id'], pool['peer_id'], 'YES' if pool['enabled'] else 'NO'])
+        print ''
+        print tabulate(table, ['NAME', 'ID', 'PEER ID', 'ENABLED'], tablefmt='rst')
 
 
 def do_start(arguments):

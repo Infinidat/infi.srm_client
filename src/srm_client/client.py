@@ -151,15 +151,45 @@ class InternalSrmClient(object):
         from munch import munchify
         with self.property_collector() as key:
             response = self._send('RetrievePropertiesEx.xml', key=key,
-                                  specSet=[dict(propSet=[dict(type="DrStorageStorageManager", value="arrayManager.length"),
-                                                         dict(type="DrStorageArrayManager", value="name"),
-                                                         dict(type="DrStorageArrayManager", value="arrayPair"),
-                                                         dict(type="DrStorageArrayManager", value="arrayInfo"),
-                                                         dict(type="DrStorageArrayManager", value="arrayDiscoveryStatus.fault")],
+                                  specSet=[dict(propSet=[dict(type="DrStorageArrayManager", all=True),
+                                                         dict(type="DrStorageReplicatedArrayPair", all=True)],
                                                 objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
                                                                 selectSet=[dict(type="DrReplicationReplicationManager", path="replicationProvider", skip=True,
                                                                                 selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True,
                                                                                                 selectSet=[dict(type="DrStorageStorageManager", path="arrayManager",
                                                                                                                 selectSet=[dict(type="DrStorageArrayManager", path="arrayPair",
                                                                                                                                 selectSet=[])])])])])])])
-        print munchify(response).RetrievePropertiesExResponse.returnval.objects
+        arrays = []
+        pairs = []
+
+        def _extract_array(item):
+            [name] = [value.val['#text'] for value in item.propSet if value.name == 'name']
+            [array_info] = [value.val for value in item.propSet if value.name == 'arrayInfo']
+            [array_pair] = [value.val for value in item.propSet if value.name == 'arrayPair']
+            pools = [] if 'DrStorageArrayInfo' not in array_info else \
+                    [dict(id=array.key, name=array.name, peer_id=array.peerArrayId) for array in array_info.DrStorageArrayInfo] if isinstance(array_info.DrStorageArrayInfo, list) else\
+                    [dict(id=array_info.DrStorageArrayInfokey, name=array_info.DrStorageArrayInfoname, peer_id=array_info.DrStorageArrayInfopeerArrayId)]
+            pairs = [] if 'ManagedObjectReference' not in array_pair else \
+                    [pair['#text'] for pair in array_pair.ManagedObjectReference] if isinstance(array_pair.ManagedObjectReference, list) else \
+                    [array_pair.ManagedObjectReference['#text']]
+            arrays.append(dict(key=item.obj['#text'], name=name, pools=pools, pairs=pairs))
+
+        def _extract_pair(item):
+            [info] = [value.val for value in item.propSet if value.name == 'info']
+            [peer] = [value.val for value in item.propSet if value.name == 'peer']
+            pairs.append(dict(key=item.obj['#text'], id=info.key, name=info.name, peer_id=peer.arrayId))
+
+        for item in munchify(response).RetrievePropertiesExResponse.returnval.objects:
+            if item.obj['#text'].startswith('storage-arraymanager'):
+                _extract_array(item)
+            elif item.obj['#text'].startswith('array-pair'):
+                _extract_pair(item)
+
+        for array in arrays:
+            for pool in array['pools']:
+                try:
+                    [active_pair] = [pair for pair in pairs if pair['id'] == pool['id']]
+                except ValueError:
+                    pool.update(enabled=False)
+                pool.update(enabled=True, **active_pair)
+        return arrays
