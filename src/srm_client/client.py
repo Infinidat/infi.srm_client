@@ -189,9 +189,18 @@ class InternalSrmClient(object):
         def _extract_pair(item):
             [info] = [value.val for value in item.propSet if value.name == 'info']
             [peer] = [value.val for value in item.propSet if value.name == 'peer']
-            pairs.append(dict(key=item.obj['#text'], id=info.key, name=info.name, peer_id=peer.arrayId))
+            [device] = [value.val for value in item.propSet if value.name == 'device']
 
-        for item in munchify(response).RetrievePropertiesExResponse.returnval.objects:
+            devices = [] if 'DrStorageStorageDevice' not in device else \
+                      [dict(name=device.name, role=device.role) for device in device.DrStorageStorageDevice] if isinstance(device.DrStorageStorageDevice, list) else \
+                      [dict(name=device.DrStorageStorageDevice.name, role=device.DrStorageStorageDevice.role)]
+            pairs.append(dict(key=item.obj['#text'], id=info.key, name=info.name, peer_id=peer.arrayId, devices=devices))
+
+        objects = munchify(response).RetrievePropertiesExResponse.returnval.objects
+        if not isinstance(objects, list):
+            objects = [objects]
+
+        for item in objects:
             if item.obj['#text'].startswith('storage-arraymanager'):
                 _extract_array(item)
             elif item.obj['#text'].startswith('array-pair'):
@@ -202,22 +211,42 @@ class InternalSrmClient(object):
                 try:
                     [active_pair] = [pair for pair in pairs if pair['id'] == pool['id']]
                 except ValueError:
-                    pool.update(enabled=False)
+                    pool.update(enabled=False, devices=[])
                 else:
                     pool.update(enabled=True, **active_pair)
         return arrays
 
     def refresh_array(self, array):
-        self._send("DiscoverArrays_Task.xml", key=array['key'])
+        self.wait_for_task(self._send("DiscoverArrays_Task.xml", key=array['key']))
 
         for pool in array['pools']:
             if pool['enabled']:
-                self._send("DiscoverDevices_Task.xml", key=pool['key'])
+                self.wait_for_task(self._send("DiscoverDevices_Task.xml", key=pool['key']))
 
     def enable_array_pair(self, array, pool):
         remote_site = self.get_remote_site()
-        self._send("AddArrayPair_Task.xml", key=array['key'], array_id=pool['id'], peer_array_id=pool['peer_id'], site_id=remote_site['key'])
+        self.wait_for_task(self._send("AddArrayPair_Task.xml", key=array['key'],
+                           array_id=pool['id'], peer_array_id=pool['peer_id'], site_id=remote_site['key']))
 
     def disable_array_pair(self, array, pool):
-        self._send("RemoveArrayPair_Task.xml", key=array['key'], pair_key=pool['key'])
+        self.wait_for_task(self._send("RemoveArrayPair_Task.xml", key=array['key'], pair_key=pool['key']))
+
+    def wait_for_task(self, response):
+        from time import sleep
+        for key, value in response.items():
+            if not key.endswith('Response'):
+                continue
+            task_key = value['returnval']['#text']
+
+        specSet = [dict(propSet=[dict(type="Task", all=True)],
+                        objectSet=[dict(obj=dict(type="Task", value=task_key), partialUpdates=False, selectSet=[])])]
+        state = 'queued'
+
+        with self.property_collector() as property_collector_key:
+            while state not in ('success', 'error'):
+                response = self._send('RetrievePropertiesEx.xml', key=property_collector_key, specSet=specSet)
+                properties = response['RetrievePropertiesExResponse']['returnval']['objects']['propSet']
+                [info] = [item for item in properties if item['name'] == 'info']
+                state = info['val']['state']
+                sleep(1)
 

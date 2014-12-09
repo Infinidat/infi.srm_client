@@ -2,7 +2,8 @@
 
 Usage:
     srm [options] list-plans    <hostname> <username> <password>
-    srm [options] list-arrays   <hostname> <username> <password>
+    srm [options] list-arrays   <hostname> <username> <password> [--refresh]
+    srm [options] list-devices  <hostname> <username> <password> [--refresh]
     srm [options] enable-pair   <hostname> <username> <password> <local-array>
     srm [options] disable-pair  <hostname> <username> <password> <local-array>
     srm [options] test          <plan-name> <hostname> <username> <password>
@@ -85,16 +86,37 @@ def do_list_plans(arguments):
 
 def do_list_arrays(arguments):
     with _internal_open(arguments) as client:
+        if arguments['--refresh']:
+            for array in client.get_arrays():
+                client.refresh_array(array)
+
         arrays = client.get_arrays()
         table = []
         for array in arrays:
-            client.refresh_array(array)
             if not array['pools']:
                 print 'no arrays detected for %s' % array['name']
             for pool in array['pools']:
                 table.append([pool['name'], pool['id'], pool['peer_id'], 'YES' if pool['enabled'] else 'NO'])
         print ''
         print tabulate(table, ['NAME', 'ID', 'PEER ID', 'ENABLED'], tablefmt='rst')
+
+
+def do_list_devices(arguments):
+    with _internal_open(arguments) as client:
+        if arguments['--refresh']:
+            for array in client.get_arrays():
+                client.refresh_array(array)
+
+        arrays = client.get_arrays()
+        table = []
+        for array in arrays:
+            if not array['pools']:
+                print 'no arrays detected for %s' % array['name']
+            for pool in array['pools']:
+                for device in pool['devices']:
+                    table.append([device['name'], device['role']])
+        print ''
+        print tabulate(table, ['NAME', 'ROLE'], tablefmt='rst')
 
 
 def do_enable_pair(arguments):
@@ -157,6 +179,8 @@ def srm(argv=sys.argv[1:]):
                 do_list_plans(arguments)
             elif arguments['list-arrays']:
                 do_list_arrays(arguments)
+            elif arguments['list-devices']:
+                do_list_devices(arguments)
             elif arguments['enable-pair']:
                 do_enable_pair(arguments)
             elif arguments['disable-pair']:
