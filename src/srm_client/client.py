@@ -1,9 +1,10 @@
 import requests
-from jinja2 import Environment, PackageLoader
 import xmltodict
+import logging
+from munch import munchify
+from jinja2 import Environment, PackageLoader
 from infi.pyutils.contexts import contextmanager
 from infi.pyutils.lazy import cached_method
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,24 @@ def _listify(value):
     return value if isinstance(value, list) else [value]
 
 
-class SrmClient(object):
+def _get_proprety(property_set, name):
+    [result] = [value for value in property_set.propSet if value.name == name]
+    return result
+
+
+class BaseClient(object):
+    def _send(self, template, **kwargs):
+        xml = self.jinja_env.get_template(template).render(**kwargs)
+        logger.info('SENDING:\n%s\n', xml)
+        result = self.session.post(self.url, data=xml, verify=False).text
+        logger.info('RESULT:\n%s\n', result)
+        body = xmltodict.parse(result)['soapenv:Envelope']['soapenv:Body']
+        if 'soapenv:Fault' in body:
+            raise SrmClientException(body['soapenv:Fault']['faultstring'])
+        return body
+
+
+class SrmClient(BaseClient):
     def __init__(self, hostname, username, password):
         self.url = 'https://%s:9007/' % hostname
         self.username = username
@@ -27,16 +45,6 @@ class SrmClient(object):
             'Content-Type': 'text/xml;charset=UTF-8',
             'SOAPAction': 'urn:srm0/2.0'
         })
-
-    def _send(self, template, **kwargs):
-        xml = self.jinja_env.get_template(template).render(**kwargs)
-        logger.info('SENDING:\n%s\n', xml)
-        result = self.session.post(self.url, data=xml, verify=False).text
-        logger.info('RESULT:\n%s\n', result)
-        body = xmltodict.parse(result)['soapenv:Envelope']['soapenv:Body']
-        if 'soapenv:Fault' in body:
-            raise SrmClientException(body['soapenv:Fault']['faultstring'])
-        return body
 
     @contextmanager
     def open(self):
@@ -77,7 +85,7 @@ class SrmClient(object):
         return history
 
 
-class vCenterClient(object):
+class vCenterClient(BaseClient):
     def __init__(self, hostname, username, password):
         self.url = 'https://%s/sdk' % hostname
         self.key = None
@@ -89,16 +97,6 @@ class vCenterClient(object):
             'Content-Type': 'text/xml;charset=UTF-8'
         })
 
-    def _send(self, template, **kwargs):
-        xml = self.jinja_env.get_template(template).render(**kwargs)
-        logger.info('SENDING:\n%s\n', xml)
-        result = self.session.post(self.url, data=xml, verify=False).text
-        logger.info('RESULT:\n%s\n', result)
-        body = xmltodict.parse(result)['soapenv:Envelope']['soapenv:Body']
-        if 'soapenv:Fault' in body:
-            raise SrmClientException(body['soapenv:Fault']['faultstring'])
-        return body
-
     @contextmanager
     def open(self):
         self.key = self._send('Login.xml', username=self.username, password=self.password)['LoginResponse']['returnval']['key']
@@ -108,7 +106,7 @@ class vCenterClient(object):
             self._send('Logout.xml')
 
 
-class InternalSrmClient(object):
+class InternalSrmClient(BaseClient):
     def __init__(self, hostname, username, password):
         self.url = 'https://%s:%s/dr' % (hostname.split(':')[0], '8095' if ':' not in hostname else hostname.split(':')[1])
         self.username = username
@@ -120,24 +118,23 @@ class InternalSrmClient(object):
             'SOAPAction': ''
         })
 
-    def _send(self, template, **kwargs):
-        xml = self.jinja_env.get_template(template).render(**kwargs)
-        logger.info('SENDING:\n%s\n', xml)
-        result = self.session.post(self.url, data=xml, verify=False).text
-        logger.info('RESULT:\n%s\n', result)
-        body = xmltodict.parse(result)['soapenv:Envelope']['soapenv:Body']
-        if 'soapenv:Fault' in body:
-            raise SrmClientException(body['soapenv:Fault']['faultstring'])
-        return body
-
     @contextmanager
-    def open(self):
+    def _login_to_local_site(self):
         vcenter_address = self._send('RetrieveContent.xml')['RetrieveContentResponse']['returnval']['siteName']
         with vCenterClient(vcenter_address, self.username, self.password).open() as vcenter_client:
             self._send('DrLogin.xml', username=self.username, key=vcenter_client.key)
-            remote_site = self.get_remote_site()
-            with vCenterClient(remote_site['vcenter_address'], self.username, self.password).open() as remote_vcenter_client:
-                self._send('LoginRemoteSite.xml', username=self.username, site_id=remote_site['key'], remote_session_id=remote_vcenter_client.key)
+            yield vcenter_client.key
+
+    @contextmanager
+    def _login_to_remote_site(self):
+        remote_site = self.get_remote_site()
+        with vCenterClient(remote_site['vcenter_address'], self.username, self.password).open() as remote_vcenter_client:
+            self._send('LoginRemoteSite.xml', username=self.username, site_id=remote_site['key'], remote_session_id=remote_vcenter_client.key)
+            yield
+
+    @contextmanager
+    def open(self):
+        with self._login_to_local_site(), self._login_to_remote_site():
             try:
                 yield self
             finally:
@@ -153,7 +150,6 @@ class InternalSrmClient(object):
 
     @cached_method
     def get_remote_site(self):
-        from munch import munchify
         with self.property_collector() as key:
             response = self._send('RetrievePropertiesEx.xml', key=key,
                                   specSet=[dict(propSet=[dict(type="DrRemoteSite", all=True)],
@@ -162,13 +158,12 @@ class InternalSrmClient(object):
                                                                                 selectSet=[dict(type="DrRemoteSiteManager", path="remoteSiteList", selectSet=[])])])])])
 
         item = munchify(response).RetrievePropertiesExResponse.returnval.objects
-        [vcenter_address] = [value.val['#text'] for value in item.propSet if value.name == "name"]
-        [srm_server_address] = [value.val['#text'] for value in item.propSet if value.name == "drServerHost"]
-        [srm_server_port] = [value.val['#text'] for value in item.propSet if value.name == "drServerSoapPort"]
+        vcenter_address = _get_proprety(item, "name").val['#text']
+        srm_server_address = _get_proprety(item, "drServerHost").val['#text']
+        srm_server_port = _get_proprety(item, "drServerSoapPort").val['#text']
         return dict(key=item.obj['#text'], vcenter_address=vcenter_address, srm_address="{}:{}".format(srm_server_address, srm_server_port))
 
     def get_arrays(self):
-        from munch import munchify
         with self.property_collector() as key:
             response = self._send('RetrievePropertiesEx.xml', key=key,
                                   specSet=[dict(propSet=[dict(type="DrStorageArrayManager", all=True),
@@ -183,30 +178,22 @@ class InternalSrmClient(object):
         pairs = []
 
         def _extract_array(item):
-            [name] = [value.val['#text'] for value in item.propSet if value.name == 'name']
-            [array_info] = [value.val for value in item.propSet if value.name == 'arrayInfo']
-            [array_pair] = [value.val for value in item.propSet if value.name == 'arrayPair']
-            pools = [] if 'DrStorageArrayInfo' not in array_info else \
-                    [dict(id=array.key, name=array.name, peer_id=array.peerArrayId) for array in array_info.DrStorageArrayInfo] if isinstance(array_info.DrStorageArrayInfo, list) else\
-                    [dict(id=array_info.DrStorageArrayInfokey, name=array_info.DrStorageArrayInfoname, peer_id=array_info.DrStorageArrayInfopeerArrayId)]
-            pairs = [] if 'ManagedObjectReference' not in array_pair else \
-                    [pair['#text'] for pair in array_pair.ManagedObjectReference] if isinstance(array_pair.ManagedObjectReference, list) else \
-                    [array_pair.ManagedObjectReference['#text']]
+            name = _get_proprety(item, 'name').val['#text']
+            array_info = _get_proprety(item, 'arrayInfo').val.get('DrStorageArrayInfo', [])
+            array_pair = _get_proprety(item, 'arrayPair').val.get('ManagedObjectReference', [])
+            pools = [dict(id=array.key, name=array.name, peer_id=array.peerArrayId) for array in _listify(array_info)]
+            pairs = [pair['#text'] for pair in _listify(array_pair)]
             arrays.append(dict(key=item.obj['#text'], name=name, pools=pools, pairs=pairs))
 
         def _extract_pair(item):
-            [info] = [value.val for value in item.propSet if value.name == 'info']
-            [peer] = [value.val for value in item.propSet if value.name == 'peer']
-            [device] = [value.val for value in item.propSet if value.name == 'device']
+            info = _get_proprety(item, 'info').val
+            peer = _get_proprety(item, 'peer').val
+            device = _get_proprety(item, 'device').val.get('DrStorageStorageDevice', [])
 
-            devices = [] if 'DrStorageStorageDevice' not in device else \
-                      [dict(name=device.name, role=device.role) for device in device.DrStorageStorageDevice] if isinstance(device.DrStorageStorageDevice, list) else \
-                      [dict(name=device.DrStorageStorageDevice.name, role=device.DrStorageStorageDevice.role)]
+            devices = [dict(name=device.name, role=device.role) for device in _listify(device)]
             pairs.append(dict(key=item.obj['#text'], id=info.key, name=info.name, peer_id=peer.arrayId, devices=devices))
 
-        objects = munchify(response).RetrievePropertiesExResponse.returnval.objects
-        if not isinstance(objects, list):
-            objects = [objects]
+        objects = _listify(munchify(response).RetrievePropertiesExResponse.returnval.objects)
 
         for item in objects:
             if item.obj['#text'].startswith('storage-arraymanager'):
@@ -248,13 +235,12 @@ class InternalSrmClient(object):
 
         specSet = [dict(propSet=[dict(type="Task", all=True)],
                         objectSet=[dict(obj=dict(type="Task", value=task_key), partialUpdates=False, selectSet=[])])]
-        state = 'queued'
 
+        state = 'queued'
         with self.property_collector() as property_collector_key:
             while state not in ('success', 'error'):
-                response = self._send('RetrievePropertiesEx.xml', key=property_collector_key, specSet=specSet)
-                properties = response['RetrievePropertiesExResponse']['returnval']['objects']['propSet']
-                [info] = [item for item in properties if item['name'] == 'info']
-                state = info['val']['state']
+                response = munchify(self._send('RetrievePropertiesEx.xml', key=property_collector_key, specSet=specSet))
+                item = _listify(response.RetrievePropertiesExResponse.returnval.objects)[0]
+                state = _get_proprety(item, 'info').val.state
                 sleep(1)
 

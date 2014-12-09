@@ -18,7 +18,11 @@
         <internalvim25:objectSet>
           <internalvim25:obj xsi:type="internalvim25:ManagedObjectReference" type="{{ item.obj.type }}">{{ item.obj.value }}</internalvim25:obj>
           {%- for traversal_spec in item.selectSet recursive %}
+          {%- if traversal_spec.type and traversal_spec.path %}
           <internalvim25:selectSet xsi:type="internalvim25:TraversalSpec">
+            {%- if traversal_spec.name %}
+            <internalvim25:name>{{ traversal_spec.name }}</internalvim25:name>
+            {%- endif %}
             <internalvim25:type>{{ traversal_spec.type }}</internalvim25:type>
             <internalvim25:path>{{ traversal_spec.path }}</internalvim25:path>
             {%- if traversal_spec.skip %}
@@ -26,6 +30,12 @@
             {%- else %}
             <internalvim25:skip>false</internalvim25:skip>
             {%- endif %}
+          {%- else %}
+          <internalvim25:selectSet>
+            {%- if traversal_spec.name %}
+            <internalvim25:name>{{ traversal_spec.name }}</internalvim25:name>
+            {%- endif %}
+          {%- endif %}
             {%- if traversal_spec.selectSet %}
             {{ loop(traversal_spec.selectSet) }}
             {%- endif %}
