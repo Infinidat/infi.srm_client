@@ -159,6 +159,23 @@ class InternalSrmClient(object):
                                        selectSet=[dict(type="DrServiceInstance", path="content.remoteSiteManager", skip=True, selectSet=[]),
                                                   dict(type="DrServiceInstance", path="content.replicationManager", skip=False, selectSet=[dict(type="DrReplicationReplicationManager",
                                                                                                                                                 path="replicationProvider", skip=False)])])])
-            # secondCollector.CreateFilter(...) # remote-site-manager
-            # secondCollector.CreateFilter(...) # array-stuff
+            self._send('CreateFilter.xml', key=key,
+                       propSet=[dict(type="DrRemoteSite", value="connected"),
+                                dict(type="DrRemoteSite", value="name"),
+                                dict(type="DrServiceInstance", value="content.siteName")],
+                       objectSet=[dict(obj=dict(type="DrServiceInstance", value="DrServiceInstance"), partialUpdates=False,
+                                       selectSet=[dict(type="DrServiceInstance", path="content.remoteSiteManager", skip=True, selectSet=[]),
+                                                  dict(type="DrRemoteSiteManager", path="remoteSiteList", skip=False, selectSet=[])])])
+            self._send('CreateFilter.xml', key=key,
+                       propSet=[dict(type="DrStorageStorageManager", value="arrayManager.length"),
+                                dict(type="DrStorageArrayManager", value="name"),
+                                dict(type="DrStorageArrayManager", value="arrayPair"),
+                                dict(type="DrStorageArrayManager", value="arrayInfo"),
+                                dict(type="DrStorageArrayManager", value="arrayDiscoveryStatus.fault"),
+                                dict(type="DrStorageReplicatedArrayPair", value="owner"),
+                                dict(type="DrStorageReplicatedArrayPair", value="deviceDiscoveryStatus.fault"),
+                                dict(type="DrStorageReplicatedArrayPair", value="deviceDiscoveryStatus.peerMatchingFault"),
+                                dict(type="DrStorageReplicatedArrayPair", value="deviceMatchingFault")],
+                       objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
+                                       selectSet=[dict(type="DrReplicationReplicationManager", path="replicationProvider", skip=True, selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True, selectSet=[dict(type="DrStorageStorageManager", path="arrayManager", selectSet=[dict(type="DrStorageArrayManager", path="arrayPair", selectSet=[])])])])])])
             print self._send('WaitForUpdatesEx.xml', key=key, version='')
