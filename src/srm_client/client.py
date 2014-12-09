@@ -210,6 +210,10 @@ class InternalSrmClient(object):
     def refresh_array(self, array):
         self._send("DiscoverArrays_Task.xml", key=array['key'])
 
+        for pool in array['pools']:
+            if pool['enabled']:
+                self._send("DiscoverDevices_Task.xml", key=pool['key'])
+
     def enable_array_pair(self, array, pool):
         remote_site = self.get_remote_site()
         self._send("AddArrayPair_Task.xml", key=array['key'], array_id=pool['id'], peer_array_id=pool['peer_id'], site_id=remote_site['key'])
