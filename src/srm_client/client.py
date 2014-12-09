@@ -244,3 +244,32 @@ class InternalSrmClient(BaseClient):
                 state = _get_proprety(item, 'info').val.state
                 sleep(1)
 
+    def get_protection_groups(self):
+        with self.property_collector() as key:
+            response = self._send('RetrievePropertiesEx.xml', key=key,
+                                  specSet=[dict(propSet=[dict(type="DrReplicationProtectionGroup", all=True),
+                                                         dict(type="DrReplicationProtectedVm", all=True)],
+                                                objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
+                                                                selectSet=[dict(type="DrReplicationReplicationManager", path="protectionGroupFolder",
+                                                                                selectSet=[dict(type="DrFolder", path="childEntity", name="toPg",
+                                                                                                selectSet=[dict(name="toPg"),
+                                                                                                           dict(type="DrReplicationProtectionGroup", path="protectedVm")])])])])])
+
+        objects = _listify(munchify(response).RetrievePropertiesExResponse.returnval.objects)
+        protection_groups = []
+        protected_vms = []
+
+        def _extract_protection_group(item):
+            pass
+
+        def _extract_protected_vm(item):
+            pass
+
+        for item in objects:
+            if item.obj['#text'].startswith('protection-group'):
+                _extract_protection_group(item)
+            elif item.obj['#text'].startswith('protected-vm'):
+                _extract_protected_vm(item)
+
+        # TODO merge the objects
+        return protection_groups

@@ -1,35 +1,39 @@
 """SRM Client v{version}
 
 Usage:
-    srm [options] list-plans    <hostname> <username> <password>
-    srm [options] list-arrays   <hostname> <username> <password> [--refresh]
-    srm [options] list-devices  <hostname> <username> <password> [--refresh]
-    srm [options] enable-pair   <hostname> <username> <password> <local-array>
-    srm [options] disable-pair  <hostname> <username> <password> <local-array>
-    srm [options] test          <plan-name> <hostname> <username> <password>
-    srm [options] cleanupTest   <plan-name> <hostname> <username> <password>
-    srm [options] failover      <plan-name> <hostname> <username> <password>
-    srm [options] reprotect     <plan-name> <hostname> <username> <password>
-    srm [options] revert        <plan-name> <hostname> <username> <password>
-    srm [options] cancel        <plan-name> <hostname> <username> <password>
-    srm [options] show-result   <plan-name> <hostname> <username> <password>
+    srm [options] list-plans                          <hostname> <username> <password>
+    srm [options] list-arrays                         <hostname> <username> <password> [--refresh]
+    srm [options] list-devices                        <hostname> <username> <password> [--refresh]
+    srm [options] list-protection-groups              <hostname> <username> <password>
+    srm [options] enable-pair                         <hostname> <username> <password> <local-array>
+    srm [options] disable-pair                        <hostname> <username> <password> <local-array>
+    srm [options] test                    <plan-name> <hostname> <username> <password>
+    srm [options] cleanupTest             <plan-name> <hostname> <username> <password>
+    srm [options] failover                <plan-name> <hostname> <username> <password>
+    srm [options] reprotect               <plan-name> <hostname> <username> <password>
+    srm [options] revert                  <plan-name> <hostname> <username> <password>
+    srm [options] cancel                  <plan-name> <hostname> <username> <password>
+    srm [options] show-result             <plan-name> <hostname> <username> <password>
 
 Options:
-    -h --help         show this screen.
-    -v --version      show version.
-    --debug           enable debug-level logging.
+    -h --help                   show this screen.
+    -v --version                show version.
+    --debug                     enable debug-level logging.
 
 More information:
-    srm list-plans    list all recovery plans and their status
-    srm list-arrays   list all storage arrays
-    srm enalbe-pair   enable array pair
-    srm disable-pair  disable array pair
-    srm test          run a test failover to the peer (recovery) site, without halting the local (protected) site
-    srm cleanupTest   after testing a recovery plan, cleans up all effects of the test operation
-    srm failover      move to the peer (recovery) site; when all groups are moved the recovery plan is complete
-    srm reprotect     the peer site becomes the protected site, and the local site becomes the recovery site
-    srm cancel        reverse a failover, powering on virtual machines at the local site and abandoning the peer site
-    srm show-result   get information about the last results of a recovery plan
+    srm list-plans              list all recovery plans and their status
+    srm list-arrays             list all storage arrays
+    srm list-devices            list all storage devices
+    srm list-protection-groups  list all protection groups
+
+    srm enable-pair             enable array pair
+    srm disable-pair            disable array pair
+    srm test                    run a test failover to the peer (recovery) site, without halting the local (protected) site
+    srm cleanupTest             after testing a recovery plan, cleans up all effects of the test operation
+    srm failover                move to the peer (recovery) site; when all groups are moved the recovery plan is complete
+    srm reprotect               the peer site becomes the protected site, and the local site becomes the recovery site
+    srm cancel                  reverse a failover, powering on virtual machines at the local site and abandoning the peer site
+    srm show-result             get information about the last results of a recovery plan
 """
 
 import colorama
@@ -119,6 +123,11 @@ def do_list_devices(arguments):
         print tabulate(table, ['NAME', 'ROLE'], tablefmt='rst')
 
 
+def do_list_protection_groups(arguments):
+    with _internal_open(arguments) as client:
+        arrays = client.get_protection_groups()
+
+
 def do_enable_pair(arguments):
     with _internal_open(arguments) as client:
         _tuple = None
@@ -181,6 +190,8 @@ def srm(argv=sys.argv[1:]):
                 do_list_arrays(arguments)
             elif arguments['list-devices']:
                 do_list_devices(arguments)
+            elif arguments['list-protection-groups']:
+                do_list_protection_groups(arguments)
             elif arguments['enable-pair']:
                 do_enable_pair(arguments)
             elif arguments['disable-pair']:
