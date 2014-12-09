@@ -2,6 +2,7 @@ import requests
 from jinja2 import Environment, PackageLoader
 import xmltodict
 from infi.pyutils.contexts import contextmanager
+from infi.pyutils.lazy import cached_method
 import logging
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,9 @@ class InternalSrmClient(object):
         vcenter_address = self._send('RetrieveContent.xml')['RetrieveContentResponse']['returnval']['siteName']
         with vCenterClient(vcenter_address, self.username, self.password).open() as vcenter_client:
             self._send('DrLogin.xml', username=self.username, key=vcenter_client.key)
+            remote_site = self.get_remote_site()
+            with vCenterClient(remote_site['vcenter_address'], self.username, self.password).open() as remote_vcenter_client:
+                self._send('LoginRemoteSite.xml', username=self.username, site_id=remote_site['key'], remote_session_id=remote_vcenter_client.key)
             try:
                 yield self
             finally:
@@ -147,6 +151,7 @@ class InternalSrmClient(object):
         finally:
             self._send('DestroyPropertyCollector.xml', key=key)
 
+    @cached_method
     def get_remote_site(self):
         from munch import munchify
         with self.property_collector() as key:
@@ -157,7 +162,10 @@ class InternalSrmClient(object):
                                                                                 selectSet=[dict(type="DrRemoteSiteManager", path="remoteSiteList", selectSet=[])])])])])
 
         item = munchify(response).RetrievePropertiesExResponse.returnval.objects
-        return dict(key=item.obj['#text'])
+        [vcenter_address] = [value.val['#text'] for value in item.propSet if value.name == "name"]
+        [srm_server_address] = [value.val['#text'] for value in item.propSet if value.name == "drServerHost"]
+        [srm_server_port] = [value.val['#text'] for value in item.propSet if value.name == "drServerSoapPort"]
+        return dict(key=item.obj['#text'], vcenter_address=vcenter_address, srm_address="{}:{}".format(srm_server_address, srm_server_port))
 
     def get_arrays(self):
         from munch import munchify

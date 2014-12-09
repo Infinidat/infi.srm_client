@@ -2,7 +2,7 @@
   <soap:Body>
     <DiscoverDevices_Task xmlns="urn:internaldr0">
       <_this xsi:type="p7:ManagedObjectReference" type="DrStorageArrayManager" xmlns:p7="urn:internalvim25">{{ key }}</_this>
-        <localOnly>true</localOnly>
+      <localOnly>true</localOnly>
     </DiscoverDevices_Task>
   </soap:Body>
 </soap:Envelope>
