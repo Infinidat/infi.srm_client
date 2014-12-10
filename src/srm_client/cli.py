@@ -1,43 +1,42 @@
 """SRM Client v{version}
 
 Usage:
-    srm [options] list-plans                          <hostname> <username> <password>
-    srm [options] list-arrays                         <hostname> <username> <password> [--refresh]
-    srm [options] list-devices                        <hostname> <username> <password> [--refresh]
-    srm [options] list-protection-groups              <hostname> <username> <password>
-    srm [options] delete-protection-group             <hostname> <username> <password> <group>
-    srm [options] create-protection-group             <hostname> <username> <password> <group> [<datastore>...]
-    srm [options] create-plan                         <hostname> <username> <password> <plan>  [<group>...]
-    srm [options] delete-plan                         <hostname> <username> <password> <plan>
-    srm [options] enable-pair                         <hostname> <username> <password> <local-array>
-    srm [options] disable-pair                        <hostname> <username> <password> <local-array>
-    srm [options] test                    <plan-name> <hostname> <username> <password>
-    srm [options] cleanupTest             <plan-name> <hostname> <username> <password>
-    srm [options] failover                <plan-name> <hostname> <username> <password>
-    srm [options] reprotect               <plan-name> <hostname> <username> <password>
-    srm [options] revert                  <plan-name> <hostname> <username> <password>
-    srm [options] cancel                  <plan-name> <hostname> <username> <password>
-    srm [options] show-result             <plan-name> <hostname> <username> <password>
+    srm [options] plan list
+    srm [options] plan test              <plan-name>
+    srm [options] plan cleanupTest       <plan-name>
+    srm [options] plan failover          <plan-name>
+    srm [options] plan reprotect         <plan-name>
+    srm [options] plan revert            <plan-name>
+    srm [options] plan cancel            <plan-name>
+    srm [options] plan show-result       <plan-name>
+    srm [options] plan delete            <plan-name>
+    srm [options] plan create            <plan-name> [<group-name>...]
+    srm [options] device list            [--refresh]
+    srm [options] adapter list
+    srm [options] array delete           <array-name>
+    srm [options] array create           <array-name> <array-type> [<parameter>...]
+    srm [options] array-pair list        [--refresh]
+    srm [options] array-pair enable      <array-pair-name>
+    srm [options] array-pair disable     <array-pair-name>
+    srm [options] group list
+    srm [options] group delete           <group-name>
+    srm [options] group create           <group-name> [<datastore-name>...]
 
 Options:
     -h --help                   show this screen.
     -v --version                show version.
     --debug                     enable debug-level logging.
+    --srm-server=<srv-server>   srm server addresss
+    --srm-username=<username>       username
+    --srm-password=<password>       password
 
 More information:
-    srm list-plans              list all recovery plans and their status
-    srm list-arrays             list all storage arrays
-    srm list-devices            list all storage devices
-    srm list-protection-groups  list all protection groups
-
-    srm enable-pair             enable array pair
-    srm disable-pair            disable array pair
-    srm test                    run a test failover to the peer (recovery) site, without halting the local (protected) site
-    srm cleanupTest             after testing a recovery plan, cleans up all effects of the test operation
-    srm failover                move to the peer (recovery) site; when all groups are moved the recovery plan is complete
-    srm reprotect               the peer site becomes the protected site, and the local site becomes the recovery site
-    srm cancel                  reverse a failover, powering on virtual machines at the local site and abandoning the peer site
-    srm show-result             get information about the last results of a recovery plan
+    srm plan test                    run a test failover to the peer (recovery) site, without halting the local (protected) site
+    srm plan cleanupTest             after testing a recovery plan, cleans up all effects of the test operation
+    srm plan failover                move to the peer (recovery) site; when all groups are moved the recovery plan is complete
+    srm plan reprotect               the peer site becomes the protected site, and the local site becomes the recovery site
+    srm plan cancel                  reverse a failover, powering on virtual machines at the local site and abandoning the peer site
+    srm plan show-result             get information about the last results of a recovery plan
 """
 
 import colorama
@@ -56,19 +55,26 @@ logger = logging.getLogger(__name__)
 MODES = ('test', 'cleanupTest', 'failover', 'reprotect', 'revert')
 
 
+def _extract_server_args_from_arguments(arguments):
+    from os import environ
+    return (arguments['--srm-server'] if 'SRM_SERVER' not in environ else arguments.get('--srm-server') or environ['SRM_SERVER'],
+            arguments['--srm-username'] if 'SRM_USERNAME' not in environ else arguments.get('--srm-username') or environ['SRM_USERNAME'],
+            arguments['--srm-password'] if 'SRM_PASSWORD' not in environ else arguments.get('--srm-password') or environ['SRM_PASSWORD'],
+            )
+
+
 @contextmanager
 def _open(arguments):
     """ Open an SrmClient based on the connection information in the arguments """
-    args = [arguments['<hostname>'], arguments['<username>'], arguments['<password>']]
-    with SrmClient(*args).open() as client:
+    from os import environ
+    with SrmClient(*_extract_server_args_from_arguments(arguments)).open() as client:
         yield client
 
 
 @contextmanager
 def _internal_open(arguments):
     """ Open an SrmClient based on the connection information in the arguments """
-    args = [arguments['<hostname>'], arguments['<username>'], arguments['<password>']]
-    with InternalSrmClient(*args).open() as client:
+    with InternalSrmClient(*_extract_server_args_from_arguments(arguments)).open() as client:
         yield client
 
 
@@ -127,13 +133,22 @@ def do_list_devices(arguments):
         print tabulate(table, ['NAME', 'ROLE', 'HAS LOCAL DATASTORE'], tablefmt='rst')
 
 
+def do_list_adapters(arguments):
+    with _internal_open(arguments) as client:
+        adapters = client.get_adapters()
+        table = []
+        for adapter in adapters:
+            table.append([adapter['name'], adapter['version'], adapter['connection_parameters']])
+        print tabulate(table, ['NAME', 'VERSION', 'CONNECTION PARAMETERS'], tablefmt='rst')
+
+
 def do_list_protection_groups(arguments):
     with _internal_open(arguments) as client:
         table = []
         for group in client.get_protection_groups():
             table.append([group['name'], group['state'],
-                          [item['name'] for item in group['protected_datastores']],
-                          [item['name'] for item in group['protected_vms']]])
+                          ' '.join([item['name'] for item in group['protected_datastores']]),
+                          len(group['protected_vms'])])
         print tabulate(table, ['NAME', 'STATE', 'DATASTORES', 'VIRTUAL MACHINES'], tablefmt='rst')
 
 
@@ -142,7 +157,7 @@ def do_enable_pair(arguments):
         _tuple = None
         for array in client.get_arrays():
             for pool in array['pools']:
-                if pool['name'] == arguments['<local-array>']:
+                if pool['name'] == arguments['<array-pair-name>']:
                     _tuple = array, pool
         assert _tuple is not None
         client.enable_array_pair(*_tuple)
@@ -153,7 +168,7 @@ def do_disable_pair(arguments):
         _tuple = None
         for array in client.get_arrays():
             for pool in array['pools']:
-                if pool['name'] == arguments['<local-array>']:
+                if pool['name'] == arguments['<array-pair-name>']:
                     _tuple = array, pool
         assert _tuple is not None
         client.disable_array_pair(*_tuple)
@@ -161,29 +176,45 @@ def do_disable_pair(arguments):
 
 def do_delete_protection_group(arguments):
     with _internal_open(arguments) as client:
-        [group] = [item for item in client.get_protection_groups() if item['name'] == arguments['<group>']]
+        [group] = [item for item in client.get_protection_groups() if item['name'] == arguments['<group-name>']]
         client.delete_protection_group(group)
 
 
 def do_create_protection_group(arguments):
     with _internal_open(arguments) as client:
-        datastore_names = arguments['<datastore>']
+        datastore_names = arguments['<datastore-name>']
         datastores = [item for item in client.get_unprotected_datastores() if item['name'] in datastore_names]
         assert len(datastore_names) == len(datastores)
         assert len({item['pair'] for item in datastores}) == 1
-        client.create_protection_group(arguments['<group>'], datastores)
+        client.create_protection_group(arguments['<group-name>'], datastores)
 
 
 def do_delete_recovery_plan(arguments):
     with _internal_open(arguments) as internal_client, _open(arguments) as client:
-        internal_client.delete_recovery_plan(client.get_recovery_plans()[arguments['<plan>']])
+        internal_client.delete_recovery_plan(client.get_recovery_plans()[arguments['<plan-name>']])
 
 
 def do_create_recovery_plan(arguments):
     with _internal_open(arguments) as client:
         protection_groups = [item for item in client.get_protection_groups() if
-                             item['name'] in arguments['<group>']]
-        client.create_recovery_plan(arguments['<plan>'], protection_groups)
+                             item['name'] in arguments['<group-name>']]
+        client.create_recovery_plan(arguments['<plan-name>'], protection_groups)
+
+
+def do_create_array(arguments):
+    with _internal_open(arguments) as client:
+        [adapter] = [item for item in client.get_adapters() if
+                     item['name'] == arguments['<array-type>']]
+        connection_parameters = [dict(key=value, value=arguments['<parameter>'][index]) for
+                                      index, value in enumerate(adapter['connection_parameters'])]
+        client.create_adapter(adapter, arguments['<array-name>'], connection_parameters)
+
+
+def do_delete_array(arguments):
+    with _internal_open(arguments) as client:
+        [adapter] = [item for item in client.get_arrays() if
+                     item['name'] == arguments['<array-name>']]
+        client.delete_adapter(adapter)
 
 
 def do_start(arguments):
@@ -220,32 +251,42 @@ def srm(argv=sys.argv[1:]):
         try:
             if arguments['--debug']:
                 logging.basicConfig(level=logging.DEBUG)
-            if arguments['list-plans']:
-                do_list_plans(arguments)
-            elif arguments['list-arrays']:
-                do_list_arrays(arguments)
-            elif arguments['list-devices']:
+            if arguments['plan']:
+                if arguments['list']:
+                    do_list_plans(arguments)
+                elif any([arguments[mode] for mode in MODES]):
+                    do_start(arguments)
+                elif arguments['create']:
+                    do_create_recovery_plan(arguments)
+                elif arguments['delete']:
+                    do_delete_recovery_plan(arguments)
+                elif arguments['cancel']:
+                    do_cancel(arguments)
+                elif arguments['show-result']:
+                    do_show_result(arguments)
+            elif arguments['device']:
                 do_list_devices(arguments)
-            elif arguments['list-protection-groups']:
-                do_list_protection_groups(arguments)
-            elif arguments['delete-protection-group']:
-                do_delete_protection_group(arguments)
-            elif arguments['create-protection-group']:
-                do_create_protection_group(arguments)
-            elif arguments['delete-plan']:
-                do_delete_recovery_plan(arguments)
-            elif arguments['create-plan']:
-                do_create_recovery_plan(arguments)
-            elif arguments['enable-pair']:
-                do_enable_pair(arguments)
-            elif arguments['disable-pair']:
-                do_disable_pair(arguments)
-            elif any([arguments[mode] for mode in MODES]):
-                do_start(arguments)
-            elif arguments['cancel']:
-                do_cancel(arguments)
-            elif arguments['show-result']:
-                do_show_result(arguments)
+            elif arguments['adapter']:
+                do_list_adapters(arguments)
+            elif arguments['array']:
+                if arguments['create']:
+                    do_create_array(arguments)
+                elif arguments['delete']:
+                    do_delete_array(arguments)
+            elif arguments['array-pair']:
+                if arguments['list']:
+                        do_list_arrays(arguments)
+                elif arguments['enable']:
+                    do_enable_pair(arguments)
+                elif arguments['disable']:
+                    do_disable_pair(arguments)
+            elif arguments['group']:
+                if arguments['list']:
+                    do_list_protection_groups(arguments)
+                elif arguments['create']:
+                    do_create_protection_group(arguments)
+                elif arguments['delete']:
+                    do_delete_protection_group(arguments)
         except SrmClientException, e:
             sys.stderr.write("ERROR: %s\n" % e.message)
             return 1
@@ -259,4 +300,8 @@ def srm(argv=sys.argv[1:]):
     # we want to parse the command-line arguments, and once we succeed we want to have the pretty traceback
     arguments = parse_commandline_arguments(argv)
     colorama.init()
+
+    # Prevent urllib3 from warning about certificates
+    from requests.packages import urllib3
+    urllib3.disable_warnings()
     return _main(arguments)

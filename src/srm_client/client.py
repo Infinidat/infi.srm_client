@@ -18,7 +18,7 @@ def _listify(value):
 
 
 def _get_proprety(property_set, name):
-    [result] = [value for value in property_set.propSet if value.name == name]
+    [result] = [value for value in property_set['propSet'] if value['name'] == name]
     return result
 
 
@@ -253,6 +253,9 @@ class InternalSrmClient(BaseClient):
                 state = _get_proprety(item, 'info').val.state
                 sleep(1)
 
+        if state in ('error',):
+            raise SrmClientException(item.propSet[1].val.error.localizedMessage)
+
     def get_protection_groups(self):
         with self.property_collector() as key:
             response = self._send('RetrievePropertiesEx.xml', key=key,
@@ -322,7 +325,37 @@ class InternalSrmClient(BaseClient):
 
     def delete_recovery_plan(self, plan):
         # we fetch the recovery plan ref from the public api
-        self.wait_for_task(self._send('DestroyRecoveryPlan_Task.xml', key=plan['moref'].replace('srm-recovery-plan', 'srm-recovery-plan')))
+        self.wait_for_task(self._send('DestroyRecoveryPlan_Task.xml', key=plan['moref'].replace('srm-recovery-plan', 'recovery-plan')))
 
     def create_recovery_plan(self, plan, protection_groups):
         self.wait_for_task(self._send('CreateRecoveryPlan_Task.xml', name=plan, protection_groups=protection_groups))
+
+    def get_adapters(self):
+        with self.property_collector() as key:
+            response = self._send('RetrievePropertiesEx.xml', key=key,
+                                  specSet=[dict(propSet=[dict(type="DrStorageStorageAdapter", all=True)],
+                                                objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
+                                                                selectSet=[dict(type="DrReplicationReplicationManager", path="replicationProvider", skip=True,
+                                                                                selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True,
+                                                                                                selectSet=[dict(type="DrStorageStorageManager", path="arrayManager",
+                                                                                                                selectSet=[dict(type="DrStorageArrayManager", path="adapter")])])])])])])
+        objects = _listify(response['RetrievePropertiesExResponse']['returnval']['objects'])
+        adapters = []
+        for item in objects:
+            model = _listify(_get_proprety(item, 'arrayModel')['val'].get('DrStorageStorageAdapterArrayModel', []))[0]
+            info = _get_proprety(item, 'info')['val']
+            software = _listify(_get_proprety(item, 'replicationSoftware')['val'].get('DrStorageStorageAdapterReplicationSoftware', []))[0]
+            connection = _listify(_get_proprety(item, 'connectionPrompt')['val'].get('DrStorageAdapterConnectionPrompt', []))[0]
+            parameters = [key if 'key' not in value else '%s.%s' % (key, value['key']) for
+                          key, value in connection.items()[2:]]
+            adapters.append(dict(key=item['obj']['#text'], model=model['name'], vendor=model['vendor']['text'],
+                                 version=info['version'], name=software['name'],
+                                 connection_parameters=parameters))
+        return adapters
+
+    def create_adapter(self, adapter, name, connection_parameters):
+        self.wait_for_task(self._send('StorageManagerCreateArrayManager2_Task.xml',
+                                      key=adapter['key'], name=name, connection_parameters=connection_parameters))
+
+    def delete_adapter(self, adapter):
+        self.wait_for_task(self._send('StorageManagerDeleteArrayManager2_Task.xml', key=adapter['key']))

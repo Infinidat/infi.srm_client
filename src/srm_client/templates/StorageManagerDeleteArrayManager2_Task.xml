@@ -1,0 +1,8 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <StorageManagerDeleteArrayManager2_Task xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrStorageStorageManager" xmlns:p7="urn:internalvim25">DrStorageManager</_this>
+      <arrayManager type="DrStorageArrayManager">{{ key }}</arrayManager>
+    </StorageManagerDeleteArrayManager2_Task>
+  </soap:Body>
+</soap:Envelope>
