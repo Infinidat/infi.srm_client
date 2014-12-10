@@ -189,7 +189,7 @@ class InternalSrmClient(BaseClient):
             info = _get_proprety(item, 'info').val
             peer = _get_proprety(item, 'peer').val
             device = _get_proprety(item, 'device').val.get('DrStorageStorageDevice', [])
-            replicated_datastore = _get_proprety(item, 'replicatedDatastore').val.get('DrStorageReplicatedDatastore', [])
+            replicated_datastore = _listify(_get_proprety(item, 'replicatedDatastore').val.get('DrStorageReplicatedDatastore', []))
             devices = [dict(name=device.name, role=device.role, id=device.id) for device in _listify(device)]
             for datastore in replicated_datastore:
                 for device in devices:
@@ -239,7 +239,7 @@ class InternalSrmClient(BaseClient):
                 task_key = value['returnval']['#text']
             else:
                 for key, obj in value['returnval'].items():
-                    if key.endswith('Task'):
+                    if key.endswith('Task') and '#text' in obj:
                         task_key = obj['#text']
 
         specSet = [dict(propSet=[dict(type="Task", all=True)],
