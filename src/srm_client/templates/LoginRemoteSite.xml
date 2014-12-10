@@ -1,0 +1,11 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <LoginRemoteSite xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrSessionManager" xmlns:p7="urn:internalvim25">DrSessionManager</_this>
+      <site type="DrRemoteSite">{{ site_id }}</site>
+      <remoteVcSessionId>{{ remote_session_id }}</remoteVcSessionId>
+      <remoteUsername>{{ username }}</remoteUsername>
+      <locale>en_US</locale>
+    </LoginRemoteSite>
+  </soap:Body>
+</soap:Envelope>

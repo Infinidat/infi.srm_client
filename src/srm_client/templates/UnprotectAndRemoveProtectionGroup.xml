@@ -1,0 +1,8 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <UnprotectAndRemoveProtectionGroup xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrReplicationReplicationManager" xmlns:p7="urn:internalvim25">DrReplicationManager</_this>
+      <group type="DrReplicationProtectionGroup">{{ key }}</group>
+    </UnprotectAndRemoveProtectionGroup>
+  </soap:Body>
+</soap:Envelope>

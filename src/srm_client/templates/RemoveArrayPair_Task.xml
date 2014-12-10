@@ -1,0 +1,8 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <RemoveArrayPair_Task xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrStorageArrayManager" xmlns:p7="urn:internalvim25">{{ key }}</_this>
+      <array type="DrStorageReplicatedArrayPair">{{ pair_key }}</array>
+    </RemoveArrayPair_Task>
+  </soap:Body>
+</soap:Envelope>

@@ -1,0 +1,10 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <Login xmlns="urn:internalvim25">
+      <_this xsi:type="ManagedObjectReference" type="SessionManager" serverGuid="0953C0DA-829E-4EB2-8434-891167823498">SessionManager</_this>
+      <userName>{{ username }}</userName>
+      <password>{{ password }}</password>
+      <locale>en_US</locale>
+    </Login>
+  </soap:Body>
+</soap:Envelope>
