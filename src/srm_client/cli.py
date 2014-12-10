@@ -177,7 +177,7 @@ def do_disable_pair(arguments):
 
 def do_delete_protection_group(arguments):
     with _internal_open(arguments) as client:
-        [group] = [item for item in client.get_protection_groups() if item['name'] == arguments['<group-name>']]
+        [group] = [item for item in client.get_protection_groups() if item['name'] == arguments['<group-name>'][0]]
         client.delete_protection_group(group)
 
 
@@ -187,7 +187,7 @@ def do_create_protection_group(arguments):
         datastores = [item for item in client.get_unprotected_datastores() if item['name'] in datastore_names]
         assert len(datastore_names) == len(datastores)
         assert len({item['pair'] for item in datastores}) == 1
-        client.create_protection_group(arguments['<group-name>'], datastores)
+        client.create_protection_group(arguments['<group-name>'][0], datastores)
 
 
 def do_delete_recovery_plan(arguments):

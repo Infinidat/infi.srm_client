@@ -309,7 +309,7 @@ class InternalSrmClient(BaseClient):
     def get_unprotected_datastores(self):
         datastores = []
         unassigned_groups = munchify(self._send('QueryUnassignedDatastoreGroupArrays.xml'))
-        for array in _listify(unassigned_groups.QueryUnassignedDatastoreGroupArraysResponse.returnval):
+        for array in _listify(unassigned_groups.QueryUnassignedDatastoreGroupArraysResponse.get('returnval', [])):
             unassigned_datastores = munchify(self._send('QueryUnassignedDatastoreGroups.xml', key=array['#text']))
             for datastore_group in _listify(unassigned_datastores.QueryUnassignedDatastoreGroupsResponse.returnval):
                 datastores.append(dict(key=datastore_group.key, vms=[vm.key['#text'] for vm in  _listify(datastore_group.vm)]))
@@ -337,8 +337,7 @@ class InternalSrmClient(BaseClient):
                                                 objectSet=[dict(obj=dict(type="DrReplicationReplicationManager", value="DrReplicationManager"), partialUpdates=False,
                                                                 selectSet=[dict(type="DrReplicationReplicationManager", path="replicationProvider", skip=True,
                                                                                 selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True,
-                                                                                                selectSet=[dict(type="DrStorageStorageManager", path="arrayManager",
-                                                                                                                selectSet=[dict(type="DrStorageArrayManager", path="adapter")])])])])])])
+                                                                                                selectSet=[dict(type="DrStorageStorageManager", path="adapter")])])])])])
         objects = _listify(response['RetrievePropertiesExResponse'].get('returnval', dict(objects=[]))['objects'])
         adapters = []
         for item in objects:
