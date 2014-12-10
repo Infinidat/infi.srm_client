@@ -44,7 +44,7 @@ import colorama
 import sys
 import docopt
 from infi.traceback import pretty_traceback_and_exit_decorator
-from client import SrmClient, InternalSrmClient, SrmClientException
+from .client import SrmClient, InternalSrmClient, SrmClientException
 from infi.pyutils.contexts import contextmanager
 from tabulate import tabulate
 import re
