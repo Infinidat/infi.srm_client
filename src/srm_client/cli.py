@@ -21,6 +21,7 @@ Usage:
     srm [options] group list
     srm [options] group delete           <group-name>
     srm [options] group create           <group-name> [<datastore-name>...]
+    srm [options] purge
 
 Options:
     -h --help                   show this screen.
@@ -207,14 +208,14 @@ def do_create_array(arguments):
                      item['name'] == arguments['<array-type>']]
         connection_parameters = [dict(key=value, value=arguments['<parameter>'][index]) for
                                       index, value in enumerate(adapter['connection_parameters'])]
-        client.create_adapter(adapter, arguments['<array-name>'], connection_parameters)
+        client.create_array(adapter, arguments['<array-name>'], connection_parameters)
 
 
 def do_delete_array(arguments):
     with _internal_open(arguments) as client:
         [adapter] = [item for item in client.get_arrays() if
                      item['name'] == arguments['<array-name>']]
-        client.delete_adapter(adapter)
+        client.delete_array(adapter)
 
 
 def do_start(arguments):
@@ -238,6 +239,19 @@ def do_show_result(arguments):
         result = client.get_recovery_result(_plan_name_to_moref(client, name))
         table = [(_decamelize(key), value) for key, value in result.iteritems()]
         print tabulate(table, tablefmt='rst')
+
+
+def do_purge(arguments):
+    with _internal_open(arguments) as internal_client, _open(arguments) as client:
+        for key, value in client.get_recovery_plans().items():
+            internal_client.delete_recovery_plan(value)
+        for item in internal_client.get_protection_groups():
+            internal_client.delete_protection_group(item)
+        for array in internal_client.get_arrays():
+            for pool in array['pools']:
+                if pool['enabled']:
+                    internal_client.disable_array_pair(array, pool)
+            internal_client.delete_array(array)
 
 
 def parse_commandline_arguments(argv):
@@ -287,6 +301,8 @@ def srm(argv=sys.argv[1:]):
                     do_create_protection_group(arguments)
                 elif arguments['delete']:
                     do_delete_protection_group(arguments)
+            elif arguments['purge']:
+                do_purge(arguments)
         except SrmClientException, e:
             sys.stderr.write("ERROR: %s\n" % e.message)
             return 1

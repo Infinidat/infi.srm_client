@@ -60,7 +60,7 @@ class SrmClient(BaseClient):
         containing its moref, state and list of protection group morefs in this plan.
         """
         data = self._send('ListPlans.xml')
-        morefs = [r['#text'] for r in _listify(data['ListPlansResponse']['returnval'])]
+        morefs = [r['#text'] for r in _listify(data['ListPlansResponse'].get('returnval', []))]
         ret = {}
         for moref in morefs:
             data = self._send('RecoveryPlanGetInfo.xml', moref=moref)['RecoveryPlanGetInfoResponse']['returnval']
@@ -197,7 +197,7 @@ class InternalSrmClient(BaseClient):
                         device['key'] = datastore.key['#text']
             pairs.append(dict(key=item.obj['#text'], id=info.key, name=info.name, peer_id=peer.arrayId, devices=devices))
 
-        objects = _listify(munchify(response).RetrievePropertiesExResponse.returnval.objects)
+        objects = _listify(munchify(response).RetrievePropertiesExResponse.get('returnval', dict(objects=[]))['objects'])
 
         for item in objects:
             if item.obj['#text'].startswith('storage-arraymanager'):
@@ -240,7 +240,7 @@ class InternalSrmClient(BaseClient):
             else:
                 for key, obj in value['returnval'].items():
                     if key.endswith('Task'):
-                        task_key = obj['task']['#text']
+                        task_key = obj['#text']
 
         specSet = [dict(propSet=[dict(type="Task", all=True)],
                         objectSet=[dict(obj=dict(type="Task", value=task_key), partialUpdates=False, selectSet=[])])]
@@ -267,7 +267,7 @@ class InternalSrmClient(BaseClient):
                                                                                                 selectSet=[dict(name="toPg"),
                                                                                                            dict(type="DrReplicationProtectionGroup", path="protectedVm")])])])])])
 
-        objects = _listify(munchify(response).RetrievePropertiesExResponse.returnval.objects)
+        objects = _listify(munchify(response).RetrievePropertiesExResponse.get('returnval', dict(objects=[]))['objects'])
         protection_groups = []
         protected_vms = {}
 
@@ -339,7 +339,7 @@ class InternalSrmClient(BaseClient):
                                                                                 selectSet=[dict(type="DrReplicationStorageProvider", path="storageManager", skip=True,
                                                                                                 selectSet=[dict(type="DrStorageStorageManager", path="arrayManager",
                                                                                                                 selectSet=[dict(type="DrStorageArrayManager", path="adapter")])])])])])])
-        objects = _listify(response['RetrievePropertiesExResponse']['returnval']['objects'])
+        objects = _listify(response['RetrievePropertiesExResponse'].get('returnval', dict(objects=[]))['objects'])
         adapters = []
         for item in objects:
             model = _listify(_get_proprety(item, 'arrayModel')['val'].get('DrStorageStorageAdapterArrayModel', []))[0]
@@ -353,9 +353,9 @@ class InternalSrmClient(BaseClient):
                                  connection_parameters=parameters))
         return adapters
 
-    def create_adapter(self, adapter, name, connection_parameters):
+    def create_array(self, adapter, name, connection_parameters):
         self.wait_for_task(self._send('StorageManagerCreateArrayManager2_Task.xml',
                                       key=adapter['key'], name=name, connection_parameters=connection_parameters))
 
-    def delete_adapter(self, adapter):
+    def delete_array(self, adapter):
         self.wait_for_task(self._send('StorageManagerDeleteArrayManager2_Task.xml', key=adapter['key']))
