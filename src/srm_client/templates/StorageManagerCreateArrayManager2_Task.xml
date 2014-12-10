@@ -1,0 +1,22 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <StorageManagerCreateArrayManager2_Task xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrStorageStorageManager" xmlns:p7="urn:internalvim25">DrStorageManager</_this>
+      <name>{{ name }}</name>
+      <adapter type="DrStorageStorageAdapter">{{ key }}</adapter>
+      <connectionSpec>
+        <key>primary</key>
+        {%- for item in connection_parameters %}
+        {%- if '.' in item.key %}
+        <{{ item.key.split('.')[0] }} xmlns:internalvim25="urn:internalvim25">
+          <internalvim25:key>{{ item.key.split('.')[1] }}</internalvim25:key>
+          <internalvim25:value>{{ item.value }}</internalvim25:value>
+        </{{ item.key.split('.')[0] }}>
+        {%- else %}
+        <{{ item.key }}>{{ item.value }}</{{ item.key }}>
+        {%- endif %}
+        {%- endfor %}
+      </connectionSpec>
+    </StorageManagerCreateArrayManager2_Task>
+  </soap:Body>
+</soap:Envelope>

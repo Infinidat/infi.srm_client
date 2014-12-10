@@ -1,0 +1,8 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <QueryUnassignedDatastoreGroups xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrReplicationStorageProvider" xmlns:p7="urn:internalvim25">StorageReplicationProvider</_this>
+      <array type="DrStorageReplicatedArrayPair">{{ key }}</array>
+    </QueryUnassignedDatastoreGroups>
+  </soap:Body>
+</soap:Envelope>

@@ -1,0 +1,10 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <AddArrayPair_Task xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrStorageArrayManager" xmlns:p7="urn:internalvim25">{{ key }}</_this>
+      <arrayId>{{ array_id }}</arrayId>
+      <remoteSite type="DrRemoteSite">{{ site_id }}</remoteSite>
+      <peerArrayId>{{ peer_array_id }}</peerArrayId>
+    </AddArrayPair_Task>
+  </soap:Body>
+</soap:Envelope>

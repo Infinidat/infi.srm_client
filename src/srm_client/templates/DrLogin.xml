@@ -1,0 +1,10 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <DrLogin xmlns="urn:internaldr0">
+      <_this xsi:type="p7:ManagedObjectReference" type="DrSessionManager" xmlns:p7="urn:internalvim25">DrSessionManager</_this>
+      <vcSessionId>{{ key }}</vcSessionId>
+      <username>{{ username }}</username>
+      <locale>en_US</locale>
+    </DrLogin>
+  </soap:Body>
+</soap:Envelope>

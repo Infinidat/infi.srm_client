@@ -1,0 +1,52 @@
+<soap:Envelope xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <RetrievePropertiesEx xmlns="urn:internaldr0">
+      <_this xmlns:internalvim25="urn:internalvim25" xsi:type="internalvim25:ManagedObjectReference" type="PropertyCollector">{{ key }}</_this>
+      {%- for spec in specSet %}
+      <specSet xmlns:internalvim25="urn:internalvim25">
+      {%- for item in spec.propSet %}
+        <internalvim25:propSet>
+          <internalvim25:type>{{ item.type }}</internalvim25:type>
+          {%- if item.all %}
+          <internalvim25:all>true</internalvim25:all>
+          {%- else %}
+          <internalvim25:pathSet>{{ item.value }}</internalvim25:pathSet>
+          {%- endif %}
+        </internalvim25:propSet>
+      {%- endfor %}
+      {%- for item in spec.objectSet %}
+        <internalvim25:objectSet>
+          <internalvim25:obj xsi:type="internalvim25:ManagedObjectReference" type="{{ item.obj.type }}">{{ item.obj.value }}</internalvim25:obj>
+          {%- for traversal_spec in item.selectSet recursive %}
+          {%- if traversal_spec.type and traversal_spec.path %}
+          <internalvim25:selectSet xsi:type="internalvim25:TraversalSpec">
+            {%- if traversal_spec.name %}
+            <internalvim25:name>{{ traversal_spec.name }}</internalvim25:name>
+            {%- endif %}
+            <internalvim25:type>{{ traversal_spec.type }}</internalvim25:type>
+            <internalvim25:path>{{ traversal_spec.path }}</internalvim25:path>
+            {%- if traversal_spec.skip %}
+            <internalvim25:skip>true</internalvim25:skip>
+            {%- else %}
+            <internalvim25:skip>false</internalvim25:skip>
+            {%- endif %}
+          {%- else %}
+          <internalvim25:selectSet>
+            {%- if traversal_spec.name %}
+            <internalvim25:name>{{ traversal_spec.name }}</internalvim25:name>
+            {%- endif %}
+          {%- endif %}
+            {%- if traversal_spec.selectSet %}
+            {{ loop(traversal_spec.selectSet) }}
+            {%- endif %}
+          </internalvim25:selectSet>
+          {%- endfor %}
+        </internalvim25:objectSet>
+      {%- endfor %}
+      </specSet>
+      {%- endfor %}
+      <options xmlns:internalvim25="urn:internalvim25">
+      </options>
+    </RetrievePropertiesEx>
+  </soap:Body>
+</soap:Envelope>
