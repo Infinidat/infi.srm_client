@@ -283,7 +283,7 @@ class InternalSrmClient(BaseClient):
         def _extract_protected_vm(item):
             protected_vms[item.obj['#text']] = dict(key=item.obj['#text'],
                                                     state=_get_proprety(item, 'state').val['#text'],
-                                                    name=_get_proprety(item, 'productionVmInfo').val.name,
+                                                    name=_get_proprety(item, 'vmInfo').val.name,
                                                     protection_group=_get_proprety(item, 'parent').val['#text'])
 
         for item in objects:
