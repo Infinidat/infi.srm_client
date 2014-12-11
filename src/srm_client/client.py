@@ -311,7 +311,7 @@ class InternalSrmClient(BaseClient):
         unassigned_groups = munchify(self._send('QueryUnassignedDatastoreGroupArrays.xml'))
         for array in _listify(unassigned_groups.QueryUnassignedDatastoreGroupArraysResponse.get('returnval', [])):
             unassigned_datastores = munchify(self._send('QueryUnassignedDatastoreGroups.xml', key=array['#text']))
-            for datastore_group in _listify(unassigned_datastores.QueryUnassignedDatastoreGroupsResponse.returnval):
+            for datastore_group in _listify(unassigned_datastores.QueryUnassignedDatastoreGroupsResponse.get('returnval', [])):
                 datastores.append(dict(key=datastore_group.key, vms=[vm.key['#text'] for vm in  _listify(datastore_group.vm)]))
         for array in self.get_arrays():
             for pool in array['pools']:
