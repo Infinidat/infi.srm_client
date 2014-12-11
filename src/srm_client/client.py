@@ -275,7 +275,7 @@ class InternalSrmClient(BaseClient):
             protection_groups.append(dict(key=item.obj['#text'], name=_get_proprety(item, 'settings').val.name,
                                           state=_get_proprety(item, 'state').val['#text'],
                                           protected_datastores=[dict(key=value.protectedDatastore['#text'], name=value.protectedName) for
-                                                                     value in _listify(_get_proprety(item, 'peer').val.providerDetails.datastore)],
+                                                                     value in _listify(_get_proprety(item, 'peer').val.providerDetails.get('datastore', []))],
                                           protected_vms=[dict(key=vm['#text'], name=protected_vms[vm['#text']]['name']) for
                                                          vm in _listify(_get_proprety(item, 'protectedVm').val.get('ManagedObjectReference', []))]))
 
