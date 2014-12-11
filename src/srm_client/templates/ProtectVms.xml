@@ -5,10 +5,9 @@
   <soap:Body>
     <ProtectVms xmlns="urn:internaldr0">
       <_this xsi:type="p7:ManagedObjectReference" type="DrReplicationProtectionGroup" xmlns:p7="urn:internalvim25">{{ key }}</_this>
+      {%- for vm in vms %}
       <specs>
-        {%- for vm in vms %}
         <vm xmlns:internalvim25="urn:internalvim25" type="VirtualMachine">{{ vm }}</vm>
-        {%- endfor %}
         <protectionSettings>
           <logsMirrored>false</logsMirrored>
           <ftMirrored>false</ftMirrored>
@@ -21,6 +20,7 @@
           </recoveryLocationSettings>
         </recoverySpec>
       </specs>
+    {%- endfor %}
     </ProtectVms>
   </soap:Body>
 </soap:Envelope>
